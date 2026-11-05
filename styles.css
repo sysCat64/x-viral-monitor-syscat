@@ -113,6 +113,14 @@ html[data-xvm-badge-style="inline-classic"] .xvm-badge--red { color: #f44336; ba
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
+/* Japanese: prefer Japanese fonts so Han characters use Japanese glyph forms.
+   content.js sets lang on this element only; Chinese and English keep the stack above. */
+.xvm-update-backdrop:lang(ja) {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif;
+}
+/* Buttons do not inherit font-family by default. */
+.xvm-update-backdrop:lang(ja) .xvm-update-primary { font-family: inherit; }
+
 .xvm-update-dialog {
   position: relative;
   width: min(420px, calc(100vw - 32px));

@@ -91,6 +91,12 @@ const bookmarkTimelineSeenTweetIds = new Set();
 let bookmarkTimelineFolders = [];
 let bookmarkTimelineDialog = null;
 let pendingReleaseNotesVersion = '';
+// lang attribute for the release-notes dialog only (scopes the Japanese font
+// stack in styles.css). Comes from bridge.js's effectiveLanguage. Until the
+// first settings message arrives the dialog shows its Chinese fallback texts,
+// so the default is zh-CN. The host page's <html lang> is never touched.
+const RELEASE_NOTES_HTML_LANG = { ja: 'ja', en: 'en', zh_CN: 'zh-CN' };
+let releaseNotesLang = 'zh-CN';
 
 function bookmarkTimelineDebugEnabled() {
   try { return localStorage.getItem('xvmBtiDebug') === '1'; } catch (_) { return false; }
@@ -227,6 +233,9 @@ window.addEventListener('message', (event) => {
   if (event.data?.type !== 'XVM_SETTINGS_UPDATE') return;
 
   localizedStrings = event.data.messages || localizedStrings;
+  if (Object.prototype.hasOwnProperty.call(RELEASE_NOTES_HTML_LANG, event.data.effectiveLanguage)) {
+    releaseNotesLang = RELEASE_NOTES_HTML_LANG[event.data.effectiveLanguage];
+  }
   applyLocalizedUi();
   velocityThresholds = normalizeThresholds(event.data.thresholds);
   badgeStyle = event.data.badgeStyle === 'inline-classic' ? 'inline-classic' : 'pill-solid';
@@ -3865,6 +3874,8 @@ function showReleaseNotesModal(version) {
   const backdrop = document.createElement('div');
   backdrop.className = 'xvm-update-backdrop';
   backdrop.setAttribute('data-theme', _resolvedTheme(_themePref));
+  // Fixed at creation: the texts below are not re-rendered while the dialog is open.
+  backdrop.setAttribute('lang', releaseNotesLang);
 
   const dialog = document.createElement('div');
   dialog.className = 'xvm-update-dialog';
