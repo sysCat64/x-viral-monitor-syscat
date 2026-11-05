@@ -245,6 +245,24 @@ const CONTENT_MESSAGE_KEYS = [
   'contentCfSummaryTitle',
   'contentCfCopy',
   'contentCfCopyTitle',
+  // I18N-003 (R1) — external-provider generation errors shown in the toast
+  // (content.js). R2-origin keys that R1 also emits are included; the R3
+  // (in-page Grok) codes are intentionally NOT registered yet.
+  'aiErrBaseUrlUnsupported',
+  'aiErrOllamaLocalOnly',
+  'aiErrHttpAuth',
+  'aiErrHttpNotFound',
+  'aiErrHttpRateLimit',
+  'aiErrHttpServer',
+  'aiErrHttpOther',
+  'aiErrTimeout',
+  'aiErrConnect',
+  'aiErrApiKeyRequired',
+  'aiErrNoComments',
+  'aiErrModelRequired',
+  'aiErrGrokRoute',
+  'aiErrGenerateFailed',
+  'aiErrGenerateTimeout',
 ];
 
 const DEFAULT_FEATURES = {
@@ -1506,12 +1524,16 @@ window.addEventListener('message', (event) => {
         payload: event.data.payload || {},
       }, (res) => {
         const lastError = chrome.runtime.lastError;
+        // I18N-003 (R1): a runtime error keeps its own message and never
+        // inherits a code from an unrelated response.
+        const meta = !lastError && !res?.ok ? sanitizeAiResultMeta(res?.code, res?.params) : {};
         window.postMessage({
           type: 'XVM_AI_GENERATE_RESULT',
           requestId,
           ok: !lastError && !!res?.ok,
           comments: Array.isArray(res?.comments) ? res.comments : [],
           error: lastError?.message || res?.error || '',
+          ...meta,
         }, '*');
       });
     });

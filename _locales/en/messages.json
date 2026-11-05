@@ -651,5 +651,10 @@
   "aiErrGrokNoSession": { "message": "No X session marker was found. Log in to X and refresh the page." },
   "aiOkGrokReady": { "message": "X session detected and signature generated (generation endpoint not verified)" },
   "aiErrGrokCheckFailed": { "message": "Grok readiness check failed" },
-  "aiErrGrokCheckTimeout": { "message": "Grok readiness check timed out. Refresh X and try again." }
+  "aiErrGrokCheckTimeout": { "message": "Grok readiness check timed out. Refresh X and try again." },
+  "aiErrNoComments": { "message": "No reply suggestions could be parsed from the model's response" },
+  "aiErrModelRequired": { "message": "Enter a model name first" },
+  "aiErrGrokRoute": { "message": "The current provider is X Grok. Use the in-page Grok generation path." },
+  "aiErrGenerateFailed": { "message": "AI generation failed" },
+  "aiErrGenerateTimeout": { "message": "AI generation timed out. Check the service connection." }
 }

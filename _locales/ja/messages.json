@@ -649,5 +649,10 @@
   "aiErrGrokNoSession": { "message": "X のセッション情報が見つかりません。X にログインしてページを再読み込みしてください。" },
   "aiOkGrokReady": { "message": "X のセッション情報を検出し、署名を生成しました（生成エンドポイントは未検証）" },
   "aiErrGrokCheckFailed": { "message": "Grok の準備確認に失敗しました" },
-  "aiErrGrokCheckTimeout": { "message": "Grok の準備確認がタイムアウトしました。X を再読み込みしてやり直してください。" }
+  "aiErrGrokCheckTimeout": { "message": "Grok の準備確認がタイムアウトしました。X を再読み込みしてやり直してください。" },
+  "aiErrNoComments": { "message": "モデルの応答から返信候補を解析できませんでした" },
+  "aiErrModelRequired": { "message": "先にモデル名を入力してください" },
+  "aiErrGrokRoute": { "message": "現在のプロバイダーは X Grok です。ページ内の Grok 生成経路を使用してください。" },
+  "aiErrGenerateFailed": { "message": "AI 生成に失敗しました" },
+  "aiErrGenerateTimeout": { "message": "AI 生成がタイムアウトしました。サービスへの接続を確認してください。" }
 }

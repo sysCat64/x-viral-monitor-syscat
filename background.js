@@ -262,7 +262,11 @@ async function fetchTextStream(url, options, providerLabel, onChunk) {
   const timer = setTimeout(() => controller.abort(), 65000);
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
-    if (!res.ok) throw new Error(mapHttpError(res.status, providerLabel, await readErrorText(res)));
+    if (!res.ok) {
+      const detail = await readErrorText(res);
+      const meta = httpErrorMeta(res.status, providerLabel, detail);
+      throw codedError(mapHttpError(res.status, providerLabel, detail), meta.code, meta.params);
+    }
     const reader = res.body?.getReader?.();
     if (!reader) return '';
     const decoder = new TextDecoder();
@@ -283,8 +287,8 @@ async function fetchTextStream(url, options, providerLabel, onChunk) {
     }
     return full;
   } catch (err) {
-    if (err?.name === 'AbortError') throw new Error(`${providerLabel} 请求超时`);
-    if (err instanceof TypeError) throw new Error(`${providerLabel} 无法连接，请检查服务是否启动或网络是否可用`);
+    if (err?.name === 'AbortError') throw codedError(`${providerLabel} 请求超时`, 'aiErrTimeout', { PROVIDER: providerLabel });
+    if (err instanceof TypeError) throw codedError(`${providerLabel} 无法连接，请检查服务是否启动或网络是否可用`, 'aiErrConnect', { PROVIDER: providerLabel });
     throw err;
   } finally {
     clearTimeout(timer);
@@ -351,15 +355,15 @@ async function generateWithOllama(config, payload, onProgress) {
   }
   const text = generated || streamBody;
   const comments = extractComments(text, config.replyCount);
-  if (!comments.length) throw new Error('模型返回中没有解析到评论候选');
+  if (!comments.length) throw codedError('模型返回中没有解析到评论候选', 'aiErrNoComments');
   return comments;
 }
 
 async function generateWithOpenAICompatible(config, payload, onProgress) {
   const baseUrl = assertAllowedOpenAIBaseUrl(config.baseUrl);
   const model = config.model;
-  if (!model) throw new Error('请先填写模型名称');
-  if (!config.apiKey && !isLocalHttpUrl(baseUrl)) throw new Error('请先填写 API Key');
+  if (!model) throw codedError('请先填写模型名称', 'aiErrModelRequired');
+  if (!config.apiKey && !isLocalHttpUrl(baseUrl)) throw codedError('请先填写 API Key', 'aiErrApiKeyRequired');
   const prompt = renderPrompt(payload.tweetText, payload.promptTemplate, config.replyCount);
   const headers = { 'content-type': 'application/json' };
   if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
@@ -408,7 +412,7 @@ async function generateWithOpenAICompatible(config, payload, onProgress) {
   }
   const text = generated || streamBody;
   const comments = extractComments(text, config.replyCount);
-  if (!comments.length) throw new Error('模型返回中没有解析到评论候选');
+  if (!comments.length) throw codedError('模型返回中没有解析到评论候选', 'aiErrNoComments');
   return comments;
 }
 
@@ -480,8 +484,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: true, comments: await generateWithOpenAICompatible(config, message.payload || {}, emitProgress) });
         return;
       }
-      sendResponse({ ok: false, error: '当前 Provider 使用 X Grok，请走页面内 Grok 生成路径' });
-    })().catch((err) => sendResponse({ ok: false, error: err?.message || 'AI 生成失败' }));
+      sendResponse({ ok: false, error: '当前 Provider 使用 X Grok，请走页面内 Grok 生成路径', code: 'aiErrGrokRoute' });
+    })().catch((err) => {
+      // I18N-003 (R1): same `error` string as before, plus a machine code.
+      const response = { ok: false, error: err?.message || 'AI 生成失败' };
+      if (typeof err?.code === 'string') {
+        response.code = err.code;
+        if (err.params) response.params = err.params;
+      } else if (!err?.message) {
+        response.code = 'aiErrGenerateFailed';
+      }
+      sendResponse(response);
+    });
     return true;
   }
 

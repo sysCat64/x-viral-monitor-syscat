@@ -3,8 +3,8 @@
 // Contract: the legacy `message` / `error` strings are unchanged; `code` (a
 // locale key) and `params` are ADDED. Display (popup.js) translates `code` and
 // falls back to the legacy string for anything unexpected.
-// Out of scope here (later commits): R1 (external-provider generation) and R3
-// (in-page Grok generation) — this file also pins that R1 is unchanged.
+// R1 (external-provider generation) is covered by ai-generation-errors-i18n.test.js;
+// R3 (in-page Grok generation) is a later commit.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -223,29 +223,34 @@ describe('R2 background connection test: messages preserved, codes added', () =>
   });
 });
 
-describe('R1 (external-provider generation) is unchanged by R2', () => {
-  it('missing API key: exact { ok:false, error } with no code', async () => {
-    expect(await openai(resp(200), { apiKey: '' }).generate()).toEqual({ ok: false, error: '请先填写 API Key' });
+describe('R1 generation responses: legacy error text preserved, codes added (I18N-003 R1)', () => {
+  // The Chinese `error` strings are exactly what they were before R1; only
+  // `code` / `params` were added. Full R1 propagation tests live in
+  // ai-generation-errors-i18n.test.js.
+  it('missing API key: same error text, now with a code', async () => {
+    expect(await openai(resp(200), { apiKey: '' }).generate()).toEqual({ ok: false, error: '请先填写 API Key', code: 'aiErrApiKeyRequired' });
   });
 
-  it('shared URL assertions leak no code into generation responses', async () => {
+  it('shared URL assertions: same error text, now with a code', async () => {
     expect(await openai(resp(200), { baseUrl: 'https://evil.example/v1' }).generate())
-      .toEqual({ ok: false, error: '暂不支持这个 Base URL。请使用内置平台预设，或本地 OpenAI-compatible 地址（localhost/127.0.0.1）。' });
+      .toEqual({ ok: false, error: '暂不支持这个 Base URL。请使用内置平台预设，或本地 OpenAI-compatible 地址（localhost/127.0.0.1）。', code: 'aiErrBaseUrlUnsupported' });
     expect(await ollama(resp(200), { aiBaseUrl: 'http://example.com' }).generate())
-      .toEqual({ ok: false, error: 'Ollama Base URL 仅支持本机地址 localhost / 127.0.0.1。' });
+      .toEqual({ ok: false, error: 'Ollama Base URL 仅支持本机地址 localhost / 127.0.0.1。', code: 'aiErrOllamaLocalOnly' });
   });
 
-  it('HTTP and network failures during generation keep plain messages', async () => {
-    expect(await ollama(resp(503)).generate()).toEqual({ ok: false, error: 'Ollama 服务端错误：503' });
+  it('HTTP and network failures during generation: same error text, now with code/params', async () => {
+    expect(await ollama(resp(503)).generate())
+      .toEqual({ ok: false, error: 'Ollama 服务端错误：503', code: 'aiErrHttpServer', params: { PROVIDER: 'Ollama', STATUS: 503 } });
     expect(await ollama(async () => { throw new TypeError('x'); }).generate())
-      .toEqual({ ok: false, error: 'Ollama 无法连接，请检查服务是否启动或网络是否可用' });
+      .toEqual({ ok: false, error: 'Ollama 无法连接，请检查服务是否启动或网络是否可用', code: 'aiErrConnect', params: { PROVIDER: 'Ollama' } });
   });
 
-  it('generation-only helpers and the generation catch are untouched', () => {
-    expect(bgSrc).toContain("throw new Error(mapHttpError(res.status, providerLabel, await readErrorText(res)));");
-    expect(bgSrc).toContain("sendResponse({ ok: false, error: err?.message || 'AI 生成失败' })");
-    expect(bgSrc).toContain("if (!model) throw new Error('请先填写模型名称');");
-    expect(bgSrc).toContain("throw new Error('模型返回中没有解析到评论候选')");
+  it('generation logic and streaming are untouched; only the error construction changed', () => {
+    expect(bgSrc).toContain("sendResponse({ ok: true, comments: await generateWithOllama(config, message.payload || {}, emitProgress) });");
+    expect(bgSrc).toContain("sendResponse({ ok: true, comments: await generateWithOpenAICompatible(config, message.payload || {}, emitProgress) });");
+    expect(bgSrc).toContain("const reader = res.body?.getReader?.();");
+    expect(bgSrc).toContain("throw codedError('请先填写模型名称', 'aiErrModelRequired');");
+    expect(bgSrc).toContain("throw codedError('模型返回中没有解析到评论候选', 'aiErrNoComments');");
   });
 
   it('the prompt builder is untouched (I18N-010)', () => {

@@ -176,6 +176,6 @@ describe('I18N-002 runtime resolution (ja / en / zh_CN)', () => {
     const fn = slice('function requestExternalAiGeneration(', 'async function handleGrokGenerate(');
     expect(fn).toContain("type: 'XVM_AI_GENERATE'");
     expect(fn).toContain('replyCount: aiReplyCount');
-    expect(fn).toContain("reject(new Error('AI 生成超时，请检查服务连接'))"); // I18N-003 boundary
+    expect(fn).toContain("reject(Object.assign(new Error('AI 生成超时，请检查服务连接'), { code: 'aiErrGenerateTimeout' }))"); // message unchanged; code added by I18N-003 R1
   });
 });

@@ -430,7 +430,15 @@ window.addEventListener('message', (event) => {
   if (event.data.ok && Array.isArray(event.data.comments)) {
     pending.resolve(event.data.comments);
   } else {
-    pending.reject(new Error(event.data.error || 'AI 生成失败'));
+    // I18N-003 (R1): keep the original message; carry the bridge-validated code/params.
+    const err = new Error(event.data.error || 'AI 生成失败');
+    if (typeof event.data.code === 'string') {
+      err.code = event.data.code;
+      if (event.data.params) err.params = event.data.params;
+    } else if (!event.data.error) {
+      err.code = 'aiErrGenerateFailed';
+    }
+    pending.reject(err);
   }
 });
 
@@ -3925,7 +3933,7 @@ function showReleaseNotesModal(version) {
   ok.focus({ preventScroll: true });
 }
 
-function showGrokErrorToast(msg) {
+function showGrokErrorToast(msg, coded) {
   const toast = document.createElement('div');
   toast.className = 'xvm-toast xvm-toast--error xvm-toast--top';
   const title = document.createElement('div');
@@ -3934,11 +3942,32 @@ function showGrokErrorToast(msg) {
   const detail = document.createElement('div');
   detail.style.fontSize = '12px';
   detail.style.marginTop = '4px';
-  detail.textContent = String(msg || i18nOr('contentAiErrorRetry', '请重试'));
+  detail.textContent = String(aiErrorText(coded) || msg || i18nOr('contentAiErrorRetry', '请重试'));
   toast.append(title, detail);
   document.body.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('xvm-toast--show'));
   setTimeout(() => dismissToast(toast), 8000);
+}
+
+// I18N-003 — translate an error's machine `code` (a locale key delivered via
+// CONTENT_MESSAGE_KEYS) with its `params`. Returns '' for anything unexpected
+// (no/unknown/unregistered code, unresolved key, missing or invalid params) so
+// the caller falls back to the original error message.
+const AI_ERROR_CODE_RE = /^(?:ai(?:Err|Ok)[A-Za-z0-9]{1,48}|aiTestOk|aiTestFailed)$/;
+function aiErrorText(err) {
+  const code = err?.code;
+  if (typeof code !== 'string' || !AI_ERROR_CODE_RE.test(code)) return '';
+  const template = localizedStrings[code];
+  if (typeof template !== 'string' || !template || template === code) return '';
+  const params = err?.params && typeof err.params === 'object' && !Array.isArray(err.params) ? err.params : {};
+  let valid = true;
+  const text = template.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_m, name) => {
+    const v = Object.prototype.hasOwnProperty.call(params, name) ? params[name] : undefined;
+    if ((typeof v === 'string' && v.length <= 300) || (typeof v === 'number' && Number.isFinite(v))) return String(v);
+    valid = false;
+    return '';
+  });
+  return valid && text.trim() ? text.trim() : '';
 }
 
 function getSelectedGrokPromptTemplate() {
@@ -4441,7 +4470,7 @@ function requestExternalAiGeneration(payload, onProgress = null) {
     const requestId = `ai-${Date.now()}-${++aiRequestSeq}`;
     const timer = setTimeout(() => {
       aiPendingRequests.delete(requestId);
-      reject(new Error('AI 生成超时，请检查服务连接'));
+      reject(Object.assign(new Error('AI 生成超时，请检查服务连接'), { code: 'aiErrGenerateTimeout' }));
     }, 65000);
     aiPendingRequests.set(requestId, { resolve, reject, timer, onProgress });
     window.postMessage({
@@ -4519,7 +4548,7 @@ async function handleGrokGenerate(btn, editable, promptTemplate = null) {
     console.debug('[XVM-AI] generation failed', err);
     if (epoch !== grokGenEpoch) return;
     closeGrokOptions();
-    showGrokErrorToast(err?.message || 'AI 生成失败');
+    showGrokErrorToast(err?.message || 'AI 生成失败', err?.message ? err : { code: 'aiErrGenerateFailed' });
   } finally {
     btn.disabled = false;
     setGrokButtonLabel(btn);

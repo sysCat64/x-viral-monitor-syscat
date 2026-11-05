@@ -649,5 +649,10 @@
   "aiErrGrokNoSession": { "message": "未检测到 X 会话标记，请先登录 X 并刷新页面。" },
   "aiOkGrokReady": { "message": "已检测到 X 会话标记并生成签名（未验证生成接口）" },
   "aiErrGrokCheckFailed": { "message": "Grok 就绪检查失败" },
-  "aiErrGrokCheckTimeout": { "message": "Grok 就绪检查超时，请刷新 X 后重试。" }
+  "aiErrGrokCheckTimeout": { "message": "Grok 就绪检查超时，请刷新 X 后重试。" },
+  "aiErrNoComments": { "message": "模型返回中没有解析到评论候选" },
+  "aiErrModelRequired": { "message": "请先填写模型名称" },
+  "aiErrGrokRoute": { "message": "当前 Provider 使用 X Grok，请走页面内 Grok 生成路径" },
+  "aiErrGenerateFailed": { "message": "AI 生成失败" },
+  "aiErrGenerateTimeout": { "message": "AI 生成超时，请检查服务连接" }
 }
