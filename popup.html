@@ -72,6 +72,13 @@
       color: var(--text);
       background: var(--bg);
     }
+    /* Japanese: prefer Japanese fonts. With only the Chinese fonts above, Han
+       characters render with Chinese glyph forms (e.g. 返). popup.js sets
+       <html lang> from the displayed language. Chinese and English keep the
+       original stack. */
+    html:lang(ja) body {
+      font-family: "Inter", "Avenir Next", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif;
+    }
     /* Polish #1 (post-mock A): keep scrollbar gutter stable so popup doesn't
        jitter 1-2px when tab content height changes. Plus slim custom
        scrollbar matching the theme. */

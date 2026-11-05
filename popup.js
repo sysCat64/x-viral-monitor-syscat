@@ -11,6 +11,13 @@ const LANGUAGE_TOGGLE_TEXT = {
   en: 'EN',
   ja: '日',
 };
+// <html lang> for each effective language. Needed so the browser picks the
+// right CJK glyph forms (e.g. 返 in the Japanese tab label).
+const HTML_LANG_BY_LANGUAGE = {
+  zh_CN: 'zh-CN',
+  en: 'en',
+  ja: 'ja',
+};
 
 function normalizeLanguage(raw) {
   return SUPPORTED_LANGUAGE_IDS.includes(raw) ? raw : 'auto';
@@ -417,6 +424,10 @@ function getLanguageDisplayName(language) {
 }
 
 function updateLanguageToggle(language) {
+  // Keep <html lang> in step with the displayed language, even if the toggle
+  // button is missing. 'auto' resolves through getBrowserLocaleId().
+  const htmlLang = HTML_LANG_BY_LANGUAGE[getEffectiveLanguageId(normalizeLanguage(language))] || HTML_LANG_BY_LANGUAGE.en;
+  if (document.documentElement.lang !== htmlLang) document.documentElement.lang = htmlLang;
   if (!languageToggle) return;
   const normalized = normalizeLanguage(language);
   const label = getLanguageDisplayName(normalized);
