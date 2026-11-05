@@ -1,6 +1,6 @@
 # X Viral Monitor
 
-[English](README.en.md)
+简体中文 | [English](README.en.md) | [日本語](README.ja.md)
 
 在 X (Twitter) 时间线上实时显示每条推文的**浏览量流速**，并附带一整套阅读 / 创作辅助工具。
 
