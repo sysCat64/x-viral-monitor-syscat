@@ -484,6 +484,26 @@ function setFieldVisible(input, visible) {
   if (field) field.hidden = !visible;
 }
 
+// I18N-003 — resolve a connection-test result's machine `code` (a locale key)
+// to localized text. Anything unexpected (no/unknown code, unresolved key,
+// missing or invalid params) returns the original `legacyText` unchanged.
+const AI_RESULT_CODE_RE = /^(?:ai(?:Err|Ok)[A-Za-z0-9]{1,48}|aiTestOk|aiTestFailed)$/;
+function aiResultText(res, legacyText) {
+  const code = res?.code;
+  if (typeof code !== 'string' || !AI_RESULT_CODE_RE.test(code)) return legacyText;
+  const template = t(code);
+  if (!template || template === code) return legacyText;
+  const params = res?.params && typeof res.params === 'object' && !Array.isArray(res.params) ? res.params : {};
+  let valid = true;
+  const text = template.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_m, name) => {
+    const v = Object.prototype.hasOwnProperty.call(params, name) ? params[name] : undefined;
+    if ((typeof v === 'string' && v.length <= 300) || (typeof v === 'number' && Number.isFinite(v))) return String(v);
+    valid = false;
+    return '';
+  });
+  return valid && text.trim() ? text.trim() : legacyText;
+}
+
 function setAiTestStatus(message = '', state = '') {
   if (!aiTestStatus) return;
   aiTestStatus.textContent = message;
@@ -947,9 +967,9 @@ aiTestConnectionBtn?.addEventListener('click', () => {
         return;
       }
       if (res?.ok) {
-        setAiTestStatus(res.message || (tr('aiTestOk') || 'Connection test passed'), 'ok');
+        setAiTestStatus(aiResultText(res, res.message) || (tr('aiTestOk') || 'Connection test passed'), 'ok');
       } else {
-        setAiTestStatus(res?.error || (tr('aiTestFailed') || 'Connection test failed'), 'error');
+        setAiTestStatus(aiResultText(res, res?.error) || (tr('aiTestFailed') || 'Connection test failed'), 'error');
       }
     });
   });

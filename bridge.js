@@ -1005,6 +1005,31 @@ function pushReleaseNotesIfNeeded() {
 
 // Guard all chrome.* calls against extension context invalidation
 // (happens when extension is reloaded while page is still open)
+// I18N-003 — machine code (a locale key) + params that accompany the unchanged
+// `message` / `error` strings of the AI connection test. Anything the page
+// sends is validated here; invalid values are dropped and the legacy string
+// remains the only thing shown.
+const AI_RESULT_CODE_RE = /^(?:ai(?:Err|Ok)[A-Za-z0-9]{1,48}|aiTestOk|aiTestFailed)$/;
+function sanitizeAiResultMeta(code, params) {
+  if (typeof code !== 'string' || !AI_RESULT_CODE_RE.test(code)) return {};
+  const out = { code };
+  if (params && typeof params === 'object' && !Array.isArray(params)) {
+    const clean = {};
+    let count = 0;
+    for (const key of Object.keys(params)) {
+      if (count >= 8) break;
+      if (!/^[A-Z0-9_]{1,24}$/.test(key)) continue;
+      const value = params[key];
+      if (typeof value === 'string' && value.length <= 300) clean[key] = value;
+      else if (typeof value === 'number' && Number.isFinite(value)) clean[key] = value;
+      else continue;
+      count += 1;
+    }
+    if (count) out.params = clean;
+  }
+  return out;
+}
+
 function safeChromeCall(fn) {
   try {
     if (chrome?.runtime?.id) fn();
@@ -1025,11 +1050,15 @@ safeChromeCall(() => {
           || event.data.requestId !== requestId) return;
         const result = event.data.result;
         // Never forward arbitrary page payloads or transaction IDs to the popup.
-        finish(result?.ok === true
-          ? { ok: true, message: '已检测到 X 会话标记并生成签名（未验证生成接口）' }
-          : { ok: false, error: String(result?.error || 'Grok 就绪检查失败') });
+        if (result?.ok === true) {
+          finish({ ok: true, message: '已检测到 X 会话标记并生成签名（未验证生成接口）', code: 'aiOkGrokReady' });
+          return;
+        }
+        const meta = sanitizeAiResultMeta(result?.code, result?.params);
+        if (!meta.code && !result?.error) meta.code = 'aiErrGrokCheckFailed';
+        finish({ ok: false, error: String(result?.error || 'Grok 就绪检查失败'), ...meta });
       };
-      const timer = setTimeout(() => finish({ ok: false, error: 'Grok 就绪检查超时，请刷新 X 后重试。' }), 20000);
+      const timer = setTimeout(() => finish({ ok: false, error: 'Grok 就绪检查超时，请刷新 X 后重试。', code: 'aiErrGrokCheckTimeout' }), 20000);
       window.addEventListener('message', onResult);
       window.postMessage({ type: 'XVM_GROK_CHECK_REQUEST', requestId }, '*');
       return true;

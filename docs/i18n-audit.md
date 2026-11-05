@@ -679,3 +679,71 @@ toastM2Hint, activateTitle, grokShortTemplateLabel, cfLockedHint
 - 実機での表示。`XVM_REQUEST_SETTINGS` の応答がバーの最初の描画より遅れる実際の頻度（遅れても、受信後の再描画で切り替わる）。
 - `styles.css` の `.xvm-cf-*` に対して、日本語・英語の文言がレイアウトに収まるか。
 - `reset()` の影響の実ブラウザでの再現（上記）。
+
+## 付録 F: I18N-003 / R2（接続テスト経路）実装結果（Phase 2-5a）
+
+I18N-003 は 3 コミットに分割する（R2 → R1 → R3）。本付録は第 1 弾の R2 のみ。
+
+### 確定した設計
+
+- `code` は翻訳キーと同じ文字列。`message` / `error` は変更しない（値も型も）。
+- `params` は必要な場合のみ追加する。翻訳は表示側（`popup.js`）で行う。
+- 既存の `aiTestOk` / `aiTestFailed` を再利用する（`aiErrTestFailed` は新設しない）。
+- `background.js` に言語解決機構は追加しない。
+
+### R2 の範囲と変更点
+
+| ファイル | 変更 |
+|---|---|
+| `background.js` | `codedError()`、`httpErrorMeta()` を追加。**`fetchJson`（接続テスト専用のヘルパ）だけ**を、`code` / `params` 付きのエラーにした。URL 検証 2 箇所（`assertAllowed*BaseUrl`）、`testOpenAICompatible` の API Key 未入力、接続テストの成功メッセージ 3 種、`XVM_AI_TEST_CONNECTION` の各エラーと最後の `catch` にコードを付けた |
+| `lib/grok-reply.js` | `checkReady` 系のエラー 3 種（`aiErrGrokNoSession` / `aiErrGrokXctMissing` / `aiErrGrokSignInit`）に `code`（と `REASON`）を付けた。`XVM_GROK_CHECK_REQUEST` のハンドラが、エラー結果に `code` / `params` を載せる。**`checkReady` の成功時の戻り値は `{ ok, message }` のまま**（`grok-reply.test.js:268` が完全一致で固定しているため） |
+| `bridge.js` | `sanitizeAiResultMeta()` を追加。Grok の準備確認結果を再構築する際に、既存文字列を保ったまま、検証済みの `code` / `params` だけを追加する。成功時は bridge が `aiOkGrokReady` を付ける。タイムアウトは `aiErrGrokCheckTimeout`、空の失敗は `aiErrGrokCheckFailed` |
+| `popup.js` | `aiResultText()` を追加し、接続テストの成功・失敗表示で使う。従来の `aiTestOk` / `aiTestFailed` のフォールバックは維持 |
+| `_locales/{en,ja,zh_CN}` | 21 キーを追加 |
+
+**変更していないもの**: `content.js`、R1（`fetchTextStream`、`mapHttpError`、生成系の `throw`、`XVM_AI_GENERATE` の `catch`）、R3（`grok-reply.js` の生成系エラー）、`renderPrompt`（I18N-010）、ライセンスとゲート判定。
+
+R1 と共有している箇所（`assertAllowed*BaseUrl`、`buildHeaders` 内の 2 種のエラー）は、`Error` に `code` プロパティが付くだけで、`message` と R1 の応答（`{ ok:false, error }`）は変わらない。テストで固定している。
+
+### 追加キー（21 件）
+
+`aiErrBaseUrlUnsupported`、`aiErrOllamaLocalOnly`、`aiErrHttpAuth`、`aiErrHttpNotFound`、`aiErrHttpRateLimit`、`aiErrHttpServer`、`aiErrHttpOther`、`aiErrTimeout`、`aiErrConnect`、`aiErrApiKeyRequired`、`aiErrNoActiveTab`、`aiErrNotOnX`、`aiErrNoCheckResult`、`aiOkOllamaConnected`、`aiOkOllamaModelMissing`、`aiErrGrokXctMissing`、`aiErrGrokSignInit`、`aiErrGrokNoSession`、`aiOkGrokReady`、`aiErrGrokCheckFailed`、`aiErrGrokCheckTimeout`
+
+- プレースホルダーは `{{NAME}}` に統一した（`$` 形式は使わない）。
+- 使うパラメーター: `PROVIDER`、`STATUS`、`DETAIL`、`MODEL`、`REASON`。
+- `zh_CN` の文言は、従来の中国語メッセージと**同一**にした。テストで、全ケースについて「`zh_CN` の翻訳結果 = 従来の文字列」を検証している。
+- `CONTENT_MESSAGE_KEYS` への登録は、R2 では不要（表示は popup のみ）。R1 / R3 の content 側表示で登録する。
+
+### `code` の検証
+
+- 正規表現: `/^(?:ai(?:Err|Ok)[A-Za-z0-9]{1,48}|aiTestOk|aiTestFailed)$/`。設計時の正規表現に、`aiTestOk` と `aiTestFailed` の明示を追加した。`popup.js` と `bridge.js` で同一の式を使い、テストで一致を固定している。
+- `params` の検証は、`bridge.js` と `popup.js` で範囲が異なる（意図的な 2 段構え）。
+  - **`bridge.js`**（`sanitizeAiResultMeta`）: キーが `/^[A-Z0-9_]{1,24}$/` に合致すること、値が 300 文字以下の文字列か有限の数値であること、**最大 8 件**であることを検証する。配列、オブジェクト値、`NaN`、範囲外のキーは捨てる。`params` 自体が配列や文字列の場合も捨てる。
+  - **`popup.js`**（`aiResultText`）: **翻訳テンプレートが使う `{{NAME}}` に対応するパラメーターだけ**を検証する。自身のプロパティであること（継承プロパティは不可）、値が 300 文字以下の文字列か有限の数値であること。`params` が配列や文字列の場合は空として扱い、不足があれば従来の文字列に戻る。
+  - `popup.js` は、`params` 全体の最大件数や、テンプレートが使わないキー名の形式までは検証しない。テンプレートが参照しない余分なキーは無視されるだけで、表示には影響しない。
+  - `background.js` から直接届く応答（Ollama・OpenAI 互換）は `bridge.js` を経由しないため、`popup.js` の検証だけが適用される。送信元が拡張機能自身なので許容している。
+
+### 後方互換の保証
+
+- 旧形式（`code` なし）、未知の `code`、キー欠落、`t()` が生のキー名を返す場合、`params` の不足・不正は、すべて従来の `message` / `error` を表示する。未置換の `{{NAME}}` は表示しない。
+- 置換は関数形式。`$&`、`$1`、`$$`、`{{PROVIDER}}` を含む値もそのまま表示される。
+- `DETAIL` が空のときも有効（末尾の空白は除去）。サーバーが返した本文（先頭 300 文字）は従来どおり保持される。
+- `code` なしの失敗は、従来の `{ ok:false, error }` の形のまま。
+
+### テスト
+
+新規 `tests/ai-test-connection-i18n.test.js`（70 件）。
+
+- キー: 21 キー + 既存 2 キーが 3 ロケールにあること。各文言の `{{NAME}}` が、そのコードが出す `params` と一致すること。`$` 形式がないこと。
+- 表示（`aiResultText`）: ja / en / zh_CN、`aiTestOk` / `aiTestFailed` の再利用、旧形式・未知・不正・未解決キー、`params` の不足・不正（型違い、`NaN`、長すぎる値、配列、継承）、`$` パターン、空の `DETAIL`。
+- `background.js`: 19 ケースで、従来の中国語メッセージの完全一致と、追加された `code` / `params` を検証。各ケースで、`zh_CN` の翻訳が従来文字列と同一であること、ja / en で未置換の `{{` が残らないこと。
+- R1 の不変: 生成経路の応答が従来どおり（`code` なし）であること、`fetchTextStream` / `mapHttpError` / 生成の `catch` / プロンプト生成が変わっていないこと。
+- `bridge.js`: `sanitizeAiResultMeta` の単体テストと、実際の `XVM_GROK_CHECK` 分岐の実行（成功・失敗・偽造された `code` / `params`・旧形式・空の失敗・タイムアウト）。ページ由来の余計なフィールドが転送されないこと。
+- `grok-reply.js`: `XVM_GROK_CHECK_REQUEST` ハンドラの結果、`REASON` が `message` と `params` の両方に入ること、成功時の形が従来のままであること、R3 のエラーが従来どおりであること。
+- 有効性: 変更前の 4 ファイル（`background.js`、`bridge.js`、`popup.js`、`grok-reply.js`）に戻すと 57 件が失敗する。
+
+### 未確認事項
+
+- 実機でのポップアップ表示（Ollama・OpenAI 互換・Grok の各接続テスト）。
+- `getMessage` 差し替え（言語上書き）下で `{{NAME}}` を含む文言が返ること（コード上は問題ない見込みで、テストは `t()` をスタブして検証）。
+- `aiErrHttpOther` の `DETAIL` は、従来どおりサーバー応答の先頭 300 文字がそのまま表示される（仕様変更なし）。

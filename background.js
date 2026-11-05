@@ -125,19 +125,26 @@ function isLocalHttpUrl(baseUrl) {
   }
 }
 
+// I18N-003 — errors that reach the popup's connection test carry a machine
+// `code` (a locale key) and optional `params`, in addition to the unchanged
+// Chinese `message`. Display sides translate `code` and fall back to `message`.
+function codedError(message, code, params) {
+  return Object.assign(new Error(message), params ? { code, params } : { code });
+}
+
 function assertAllowedOpenAIBaseUrl(baseUrl) {
   const normalized = trimTrailingSlash(baseUrl);
   if (ALLOWED_OPENAI_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`))) {
     return normalized;
   }
   if (isLocalHttpUrl(normalized) && normalized.endsWith('/v1')) return normalized;
-  throw new Error('暂不支持这个 Base URL。请使用内置平台预设，或本地 OpenAI-compatible 地址（localhost/127.0.0.1）。');
+  throw codedError('暂不支持这个 Base URL。请使用内置平台预设，或本地 OpenAI-compatible 地址（localhost/127.0.0.1）。', 'aiErrBaseUrlUnsupported');
 }
 
 function assertAllowedOllamaBaseUrl(baseUrl) {
   const normalized = trimTrailingSlash(baseUrl || 'http://localhost:11434');
   if (!isLocalHttpUrl(normalized)) {
-    throw new Error('Ollama Base URL 仅支持本机地址 localhost / 127.0.0.1。');
+    throw codedError('Ollama Base URL 仅支持本机地址 localhost / 127.0.0.1。', 'aiErrOllamaLocalOnly');
   }
   return normalized.replace(/\/v1$/, '');
 }
@@ -219,16 +226,31 @@ function mapHttpError(status, providerLabel, detail = '') {
   return `${providerLabel} 请求失败：${status}${detail ? ` ${detail}` : ''}`;
 }
 
+// Code/params for the same statuses mapHttpError() words. Only fetchJson (the
+// connection-test helper) uses this; the generation path keeps plain Errors.
+function httpErrorMeta(status, providerLabel, detail = '') {
+  const PROVIDER = providerLabel;
+  if (status === 401 || status === 403) return { code: 'aiErrHttpAuth', params: { PROVIDER } };
+  if (status === 404) return { code: 'aiErrHttpNotFound', params: { PROVIDER } };
+  if (status === 429) return { code: 'aiErrHttpRateLimit', params: { PROVIDER } };
+  if (status >= 500) return { code: 'aiErrHttpServer', params: { PROVIDER, STATUS: status } };
+  return { code: 'aiErrHttpOther', params: { PROVIDER, STATUS: status, DETAIL: detail || '' } };
+}
+
 async function fetchJson(url, options, providerLabel) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45000);
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
-    if (!res.ok) throw new Error(mapHttpError(res.status, providerLabel, await readErrorText(res)));
+    if (!res.ok) {
+      const detail = await readErrorText(res);
+      const meta = httpErrorMeta(res.status, providerLabel, detail);
+      throw codedError(mapHttpError(res.status, providerLabel, detail), meta.code, meta.params);
+    }
     return await res.json();
   } catch (err) {
-    if (err?.name === 'AbortError') throw new Error(`${providerLabel} 请求超时`);
-    if (err instanceof TypeError) throw new Error(`${providerLabel} 无法连接，请检查服务是否启动或网络是否可用`);
+    if (err?.name === 'AbortError') throw codedError(`${providerLabel} 请求超时`, 'aiErrTimeout', { PROVIDER: providerLabel });
+    if (err instanceof TypeError) throw codedError(`${providerLabel} 无法连接，请检查服务是否启动或网络是否可用`, 'aiErrConnect', { PROVIDER: providerLabel });
     throw err;
   } finally {
     clearTimeout(timer);
@@ -396,18 +418,18 @@ async function testOllama(config) {
   const models = Array.isArray(json?.models) ? json.models : [];
   const model = config.model || 'llama3.1';
   if (models.length && model && !models.some((m) => m?.name === model || m?.model === model)) {
-    return { ok: true, message: `Ollama 已连接，但未在本地模型列表中找到 ${model}` };
+    return { ok: true, message: `Ollama 已连接，但未在本地模型列表中找到 ${model}`, code: 'aiOkOllamaModelMissing', params: { MODEL: String(model) } };
   }
-  return { ok: true, message: 'Ollama 已连接' };
+  return { ok: true, message: 'Ollama 已连接', code: 'aiOkOllamaConnected' };
 }
 
 async function testOpenAICompatible(config) {
   const baseUrl = assertAllowedOpenAIBaseUrl(config.baseUrl);
-  if (!config.apiKey && !isLocalHttpUrl(baseUrl)) throw new Error('请先填写 API Key');
+  if (!config.apiKey && !isLocalHttpUrl(baseUrl)) throw codedError('请先填写 API Key', 'aiErrApiKeyRequired');
   const headers = {};
   if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
   await fetchJson(`${baseUrl}/models`, { method: 'GET', headers }, getPlatformPreset(config.platform).label || 'AI Provider');
-  return { ok: true, message: '连接测试通过' };
+  return { ok: true, message: '连接测试通过', code: 'aiTestOk' };
 }
 
 async function callLicenseProxy(action, body) {
@@ -468,21 +490,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const config = await loadConfig();
       if (config.provider === 'x-grok') {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab?.id) throw new Error('请在当前窗口打开 X 页面后再检查 Grok。');
+        if (!tab?.id) throw codedError('请在当前窗口打开 X 页面后再检查 Grok。', 'aiErrNoActiveTab');
         let result;
         try {
           result = await chrome.tabs.sendMessage(tab.id, { type: 'XVM_GROK_CHECK' });
         } catch (_) {
-          throw new Error('请切换到 X 页面并刷新后，再检查 Grok 就绪状态。');
+          throw codedError('请切换到 X 页面并刷新后，再检查 Grok 就绪状态。', 'aiErrNotOnX');
         }
-        sendResponse(result || { ok: false, error: '未收到 Grok 就绪检查结果，请刷新 X 后重试。' });
+        sendResponse(result || { ok: false, error: '未收到 Grok 就绪检查结果，请刷新 X 后重试。', code: 'aiErrNoCheckResult' });
         return;
       }
       const result = config.provider === 'ollama'
         ? await testOllama(config)
         : await testOpenAICompatible(config);
       sendResponse(result);
-    })().catch((err) => sendResponse({ ok: false, error: err?.message || '连接测试失败' }));
+    })().catch((err) => {
+      const response = { ok: false, error: err?.message || '连接测试失败' };
+      if (typeof err?.code === 'string') {
+        response.code = err.code;
+        if (err.params) response.params = err.params;
+      } else if (!err?.message) {
+        response.code = 'aiTestFailed';
+      }
+      sendResponse(response);
+    });
     return true;
   }
 
