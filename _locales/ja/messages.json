@@ -625,5 +625,8 @@
   "contentAiNoTweetFound": { "message": "投稿の内容が見つかりません" },
   "contentBookmarkTimelineRefreshFailed": { "message": "ブックマークの更新に失敗しました: {{ERROR}}" },
   "contentUnknownError": { "message": "不明なエラー" },
-  "contentLbLocateFailed": { "message": "この投稿に移動できません。ページの表示が更新されたため、対象が見つからなくなりました。" }
+  "contentLbLocateFailed": { "message": "この投稿に移動できません。ページの表示が更新されたため、対象が見つからなくなりました。" },
+  "contentCfSummaryTitle": { "message": "{{COUNT}} 件の返信をフィルターしました - XVM" },
+  "contentCfCopy": { "message": "コピー" },
+  "contentCfCopyTitle": { "message": "該当した返信とルールをコピー" }
 }

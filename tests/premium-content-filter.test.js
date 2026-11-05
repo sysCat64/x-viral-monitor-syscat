@@ -1459,3 +1459,259 @@ describe('#123 XVM content filter v1', () => {
     expect(cleared).toBe(1);
   });
 });
+
+// ─── I18N-004 — summary bar localization ────────────────────────────────────
+// filter.js re-receives bridge.js's XVM_SETTINGS_UPDATE `messages` (same pattern
+// as starchart.js / bookmark-menu.js). Diagnostic copy text stays untranslated.
+describe('I18N-004 content filter summary bar i18n', () => {
+  const LOCALES = ['en', 'ja', 'zh_CN'];
+  const locale = Object.fromEntries(LOCALES.map((l) => [
+    l, JSON.parse(readFileSync(resolve(repo, `_locales/${l}/messages.json`), 'utf8')),
+  ]));
+  const bridgeSrc = readFileSync(resolve(repo, 'bridge.js'), 'utf8');
+  const bridgeKeys = new Set(
+    (bridgeSrc.match(/CONTENT_MESSAGE_KEYS\s*=\s*\[([\s\S]*?)\]/)?.[1] || '')
+      .match(/['"]([A-Za-z0-9_]+)['"]/g)?.map((s) => s.slice(1, -1)) || [],
+  );
+  const NEW_KEYS = ['contentCfSummaryTitle', 'contentCfCopy', 'contentCfCopyTitle'];
+  const REUSED_KEYS = ['contentCopyMdDone', 'contentCopyMdCopyFailed'];
+  // What bridge.js would push for a locale (all registered keys, raw key if unresolved).
+  const messagesFor = (l) => Object.fromEntries(
+    [...bridgeKeys].map((k) => [k, locale[l][k]?.message || k]),
+  );
+
+  function mount({ clipboard } = {}) {
+    const h = contentFilterDomHarness();
+    let html = '';
+    let writes = 0;
+    let clickHandler = null;
+    const summary = {
+      id: 'xvm-content-filter-summary',
+      className: 'xvm-cf-summary',
+      dataset: {},
+      hidden: false,
+      parentElement: null,
+      addEventListener(type, fn) { if (type === 'click') clickHandler = fn; },
+      closest: (selector) => (selector === '#xvm-content-filter-summary, #xvm-content-filter-style' ? summary : null),
+      get innerHTML() { return html; },
+      set innerHTML(value) { html = value; writes += 1; },
+    };
+    // Let filter.js create the bar itself (so it attaches its click handler).
+    let created = false;
+    const document = {
+      ...h.document,
+      createElement: (tag) => {
+        if (tag === 'div') { created = true; return summary; }
+        return h.document.createElement(tag);
+      },
+      getElementById: (id) => (created && id === 'xvm-content-filter-summary' ? summary : null),
+    };
+    const listeners = [];
+    const timers = [];
+    let win;
+    const api = loadDebug({
+      document,
+      setTimeout: (fn) => { timers.push(fn); },
+      window: {
+        location: { pathname: '/example_main/status/100001' },
+        navigator: { clipboard },
+        addEventListener(type, fn) { win = this; listeners.push([type, fn]); },
+      },
+    });
+    api.updateSettings({ enabled: true, level: 'standard', whitelistFollowing: false });
+    const send = (messages, extra = {}) => {
+      for (const [type, fn] of listeners) {
+        if (type === 'message') fn({ source: win, data: { type: 'XVM_SETTINGS_UPDATE', messages, ...extra } });
+      }
+    };
+    const scan = () => {
+      api._debug.scanForTweets({ tweet_results: { result: h.tweet } });
+      api._debug.applyHidesNow();
+    };
+    return {
+      api, h, send, scan, listeners, timers,
+      html: () => html, writes: () => writes,
+      click: (button) => clickHandler({ target: { closest: () => button }, preventDefault() {}, stopPropagation() {} }),
+    };
+  }
+
+  it('declares the new keys in all locales, registers them in CONTENT_MESSAGE_KEYS and uses them', () => {
+    for (const l of LOCALES) {
+      for (const k of [...NEW_KEYS, ...REUSED_KEYS]) expect(locale[l][k]?.message, `${l}:${k}`).toBeTruthy();
+      expect(locale[l].contentCfSummaryTitle.message.match(/\{\{COUNT\}\}/g)?.length, l).toBe(1);
+    }
+    expect([...NEW_KEYS, ...REUSED_KEYS].filter((k) => !bridgeKeys.has(k))).toEqual([]);
+    for (const k of [...NEW_KEYS, ...REUSED_KEYS]) expect(filter).toContain(`${k}:`);
+  });
+
+  it('reuses the existing copy-result strings rather than adding new ones', () => {
+    expect(locale.en.contentCopyMdDone.message).toBe('Copied!');
+    expect(locale.ja.contentCopyMdCopyFailed.message).toBe('コピーに失敗しました');
+  });
+
+  it('adds no new listener, event type or global: it extends the one message listener', () => {
+    expect((filter.match(/addEventListener\('message'/g) || []).length).toBe(1);
+    expect(filter).not.toMatch(/postMessage\(/);
+    expect((filter.match(/window\.__xvm\w+\s*=/g) || []).length).toBe(1); // __xvmContentFilter only
+    const m = mount();
+    expect(m.listeners.filter(([t]) => t === 'message').length).toBe(1);
+  });
+
+  it('before any messages arrive the original Chinese text is rendered', () => {
+    const m = mount();
+    m.scan();
+    expect(m.html()).toContain('<strong>已过滤 1 条回复 - XVM</strong>');
+    expect(m.html()).toContain('title="复制命中的推文和规则">复制</button>');
+  });
+
+  for (const [l, title, copy, copyTitle] of [
+    ['ja', '1 件の返信をフィルターしました - XVM', 'コピー', '該当した返信とルールをコピー'],
+    ['en', 'Filtered replies: 1 - XVM', 'Copy', 'Copy matched replies and rules'],
+    ['zh_CN', '已过滤 1 条回复 - XVM', '复制', '复制命中的推文和规则'],
+  ]) {
+    it(`renders ${l} when messages were already received`, () => {
+      const m = mount();
+      m.send(messagesFor(l));
+      m.scan();
+      expect(m.html()).toContain(`<strong>${title}</strong>`);
+      expect(m.html()).toContain(`title="${copyTitle}">${copy}</button>`);
+      expect(m.html()).not.toContain('{{');
+    });
+  }
+
+  it('re-renders an already shown bar when messages arrive later (init order)', () => {
+    const m = mount();
+    m.scan();
+    expect(m.html()).toContain('已过滤 1 条回复');
+    const before = m.writes();
+    m.send(messagesFor('ja'));
+    expect(m.writes()).toBe(before + 1);
+    expect(m.html()).toContain('1 件の返信をフィルターしました - XVM');
+  });
+
+  it('re-renders on a language change but not when the same messages are re-sent', () => {
+    const m = mount();
+    m.send(messagesFor('ja'));
+    m.scan();
+    const afterJa = m.writes();
+    m.send(messagesFor('ja')); // identical resend
+    m.send({ ...messagesFor('ja'), someOtherKey: 'changed' }); // unrelated key change
+    expect(m.writes()).toBe(afterJa);
+    m.send(messagesFor('en'));
+    expect(m.writes()).toBe(afterJa + 1);
+    expect(m.html()).toContain('Filtered replies: 1 - XVM');
+  });
+
+  it('does not touch the DOM when nothing is filtered yet', () => {
+    const m = mount();
+    m.send(messagesFor('ja'));
+    expect(m.writes()).toBe(0);
+  });
+
+  it('substitutes {{COUNT}} with a function (no $-pattern expansion)', () => {
+    const m = mount();
+    m.send({ ...messagesFor('en'), contentCfSummaryTitle: "cost $& $1 $$ {{COUNT}}" });
+    m.scan();
+    expect(m.html()).toContain('<strong>cost $&amp; $1 $$ 1</strong>');
+  });
+
+  it('escapes translated text so hostile strings never become tags', () => {
+    const m = mount();
+    m.send({
+      ...messagesFor('en'),
+      contentCfSummaryTitle: '<img src=x onerror=alert(1)>{{COUNT}}',
+      contentCfCopy: '<b>copy</b>',
+      contentCfCopyTitle: '"><script>alert(1)</script>',
+    });
+    m.scan();
+    const html = m.html();
+    const head = html.slice(0, html.indexOf('<div class="xvm-cf-list">')); // list rows legitimately contain <b>
+    expect(head).not.toMatch(/<img|<b>|<script/);
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;1');
+    expect(html).toContain('&lt;b&gt;copy&lt;/b&gt;');
+    expect(html).toContain('title="&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"');
+  });
+
+  it('ignores malformed messages and unknown keys without throwing or re-rendering', () => {
+    const m = mount();
+    m.send(messagesFor('ja'));
+    m.scan();
+    const writes = m.writes();
+    const html = m.html();
+    const bad = [
+      undefined, null, 'str', 42, true, [], [messagesFor('en')],
+      { contentCfSummaryTitle: 123, contentCfCopy: {}, contentCfCopyTitle: ['x'] },
+      { contentCfSummaryTitle: 'no placeholder here' },
+      { contentCfCopy: '   ' },
+      { contentCfCopy: 'contentCfCopy', contentCfCopyTitle: 'contentCfCopyTitle' }, // raw key from bridge
+      { evil: '<img>', __proto__: { contentCfCopy: 'inherited' } }, // inherited props are ignored
+    ];
+    for (const messages of bad) expect(() => m.send(messages)).not.toThrow();
+    expect(() => m.send(messagesFor('ja'), { messages: undefined })).not.toThrow();
+    expect(m.writes()).toBe(writes);
+    expect(m.html()).toBe(html);
+  });
+
+  it('copy success and failure use the localized strings and restore the current-language label', async () => {
+    const ok = mount({ clipboard: { writeText: async () => {} } });
+    ok.send(messagesFor('ja'));
+    ok.scan();
+    const btn = { textContent: 'コピー' };
+    ok.click(btn);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(btn.textContent).toBe('コピーしました！');
+    ok.send(messagesFor('en')); // language changes during the 1200ms window
+    ok.timers.forEach((fn) => fn());
+    expect(btn.textContent).toBe('Copy');
+
+    const ng = mount({ clipboard: { writeText: async () => { throw new Error('denied'); } } });
+    ng.send(messagesFor('en'));
+    ng.scan();
+    const btn2 = { textContent: 'Copy' };
+    ng.click(btn2);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(btn2.textContent).toBe('Copy failed');
+    ng.timers.forEach((fn) => fn());
+    expect(btn2.textContent).toBe('Copy');
+  });
+
+  it('copy before any messages arrive keeps the original Chinese labels', async () => {
+    const m = mount({ clipboard: { writeText: async () => {} } });
+    m.scan();
+    const btn = { textContent: '复制' };
+    m.click(btn);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(btn.textContent).toBe('已复制');
+    m.timers.forEach((fn) => fn());
+    expect(btn.textContent).toBe('复制');
+  });
+
+  it('diagnostic copy text stays in its fixed bug-report format regardless of language', () => {
+    const m = mount();
+    m.send(messagesFor('ja'));
+    const text = m.api._debug.formatHiddenRecordsForCopy([{ id: '1', name: 'n', handle: 'h', content: 'c', matches: [] }]);
+    expect(text).toContain('XVM 已过滤回复诊断');
+    expect(text).toContain('规则源:');
+    expect(text).toContain('tweet_id: 1');
+  });
+
+  it('filtering results are identical with and without messages (and settings are untouched)', () => {
+    const run = (withMessages) => {
+      const m = mount();
+      if (withMessages) m.send(messagesFor('ja'), { thresholds: { trending: 1 }, featureVelocityLeaderboard: false });
+      m.scan();
+      return {
+        hidden: m.h.article.hasAttribute('data-xvm-content-filter-hidden'),
+        cellHidden: m.h.cell.hasAttribute('data-xvm-content-filter-hidden'),
+        gate: m.api._debug.gateOpen(),
+        source: m.api._debug.rulesSource(),
+      };
+    };
+    expect(run(true)).toEqual(run(false));
+    expect(run(false).hidden || run(false).cellHidden).toBe(true);
+  });
+
+  it('gate.js still declares content-filter as a Free feature', () => {
+    expect(gate).toMatch(/['"]content-filter['"]\s*:\s*['"]free['"]/);
+  });
+});

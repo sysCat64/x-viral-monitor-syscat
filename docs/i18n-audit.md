@@ -598,3 +598,84 @@ toastM2Hint, activateTitle, grokShortTemplateLabel, cfLockedHint
 ### 作業メモ
 
 - 作業開始時、`npm test` が 1 件失敗していた（`build-dist-sync`: `_locales/.DS_Store` の内容が `dist/` の複製と不一致）。`.gitignore` 済みの macOS 生成ファイルが原因で、ソースとは無関係。`npm run build:community` で `dist/` を再生成して解消した（`.DS_Store` は削除していない）。
+
+## 付録 E: I18N-004 設計決定と実装結果（Phase 2-4）
+
+### 設計決定
+
+- **採用方式 A**: `src/premium/content-filter/filter.js` が、既存の `XVM_SETTINGS_UPDATE`（bridge.js の `pushSettings`）の `messages` を、自身の既存 `message` リスナーで直接受け取る。
+  - 先例: `starchart.js:140-147`、`bookmark-menu.js:554` が同じ方式で受信している。
+  - 新しいイベント、グローバル変数、翻訳基盤は追加していない。`content.js` の `localizedStrings` を共有しない（`filter.js` は `content.js` より先に実行されるため、共有は初期化順の問題を招く）。
+- **不採用**: B（`content.js` が global を公開）、C（専用イベント）、D（`isolated.js` の設定通知に同梱）。理由は、初期化順の問題、本家との衝突の多さ、`isolated.js` に言語上書きのロジックがなく二重管理になること。
+- **診断テキストは変更しない**: クリップボードにコピーされる見出し（`XVM 已过滤回复诊断` / `规则源:` / `数量:` / `时间:`）は、バグ報告用の出力形式として維持する。
+- **コピー結果の文言**: 既存の `contentCopyMdDone`（成功。`！` 付きになる）と `contentCopyMdCopyFailed`（失敗）を再利用する。
+
+### 変更内容
+
+| ファイル | 変更 |
+|---|---|
+| `src/premium/content-filter/filter.js` | `I18N_FALLBACK`（従来の中国語）、`tt()`、`updateI18n()`。`updateSummary` の見出し・件数・ボタン・title を `tt()` 経由に変更。`copyHiddenRecords` の成功・失敗表示と、1200ms 後の復元を `tt()` に変更。既存の `message` リスナーに `XVM_SETTINGS_UPDATE` の分岐を追加 |
+| `bridge.js` | `CONTENT_MESSAGE_KEYS` に 3 キーを追加（再利用の 2 キーは登録済み） |
+| `_locales/{en,ja,zh_CN}` | 3 キーを追加 |
+
+追加キー:
+
+| キー | en | ja | zh_CN |
+|---|---|---|---|
+| `contentCfSummaryTitle` | Filtered replies: {{COUNT}} - XVM | {{COUNT}} 件の返信をフィルターしました - XVM | 已过滤 {{COUNT}} 条回复 - XVM |
+| `contentCfCopy` | Copy | コピー | 复制 |
+| `contentCfCopyTitle` | Copy matched replies and rules | 該当した返信とルールをコピー | 复制命中的推文和规则 |
+
+### 受信時の検証
+
+英語の見出しは、件数が 1 件でも複数件でも自然な `Filtered replies: {{COUNT}} - XVM` にした（レビュー対応。ja / zh_CN は変更なし）。
+
+
+- `messages` は、`null` 以外のオブジェクトで、かつ配列でないものだけを受理する（`typeof messages === 'object'` と `Array.isArray` による判定。`null`、配列、文字列、数値、真偽値は無視）。plain object であるかどうかまでは検証していない（`Date` や `Map` のようなオブジェクトも通過するが、読むキーは自身のプロパティに限定しているため、結果は無視されるのと同じ）。
+- 読むキーは 5 つ（上記 3 + 再利用 2）に限定する。
+- 各値は、**自身のプロパティ**であり、空でない文字列で、キー名そのもの（bridge が未解決時に入れる生のキー）でないことを要求する。見出しはさらに `{{COUNT}}` を含むこと。
+- 不正な値は無視して、直前の有効な値（なければ従来の中国語）を保つ。
+- テスト中に、継承プロパティ（`__proto__` 経由）が受理される問題を検出したため、`hasOwnProperty` で自身のプロパティに限定した。実際の `postMessage`（構造化複製）ではプロトタイプは渡らないので、実害のない防御的な修正。
+- 翻訳文は必ず `escapeHtml` / `escapeAttr` を通す。`{{COUNT}}` の置換は関数形式。
+
+### 初期化前後・言語変更・再描画
+
+- **初期化前**: 従来と同一の中国語が表示される（既存テストが無変更で合格）。
+- **初期化後（バー表示済み）**: 文言が変わったときだけ `summarySignature` を無効化して再描画する。
+- **言語変更**: bridge が `language` の変更で再送する `XVM_SETTINGS_UPDATE` を受けて、同じ経路で更新される。
+- **同一メッセージの再送**: 再描画しない。関係のないキーの変化でも再描画しない。
+- **対象が無いとき**: `hiddenRecords` が空なら DOM に触れない。
+- **コピー**: 成功・失敗の表示は受信済みの言語で出る。1200ms 後の復元は、その時点の言語のラベルに戻る。
+
+### `reset()` の調査結果（既存の問題。今回は修正していない）
+
+- **構造**（`filter.js:9-12, 779-792`）: 再実行時、冒頭で `window.__xvmContentFilter.reset()` を呼んで `return` する。`reset()` は状態をクリアし、`MutationObserver` を切断し、`subscribed = false` にして、`window.__xvmContentFilter` を削除する。
+- **残るもの**: 旧インスタンスの `message` リスナー（解除されない）、`window.__xvmPro.onTierChange` の購読（解除 API なし。`gate.js` の `_subs` に追加されるだけ）、`__xvmNet.onResponse` のハンドラ（解除されない）。
+- **影響（コード読解による推定。実ブラウザでは再現していない）**:
+  - 再実行した新しいスクリプトは `activate()` に到達しないため、新しいインスタンスは作られない。
+  - `reset()` 後の旧インスタンスは、次の Tier 変更時に `subscribe()` が `subscribed = false` を見て再購読し、`MutationObserver` も再び監視を始める。フィルターは旧インスタンスのクロージャとして動き続ける。
+  - `window.__xvmContentFilter` が削除済みのため、さらに 3 回目の実行があると、新しいインスタンスが `activate()` まで走り、旧インスタンスと二重に動く。その場合、リスナーと `onResponse` ハンドラが重複する。
+- **再現条件**: 同じ MAIN world でこのスクリプトが 2 回以上実行されること。`manifest.json` の静的な `content_scripts` は 1 ドキュメントにつき 1 回しか実行されないため、通常の利用では発生しにくい。拡張機能の動的な再注入や開発用のリロードで起こり得る。
+- **今回の変更との関係**: 新しいリスナーは追加しておらず、既存の `message` リスナーの分岐を 1 つ増やしただけ。リスナーの重複や再描画の増加は悪化しない。i18n の状態はクロージャ内にあり、旧インスタンスも同じ文言を受け取る。
+- 対応するかどうかは別の工程として判断する。
+
+### テスト
+
+`tests/premium-content-filter.test.js` の末尾に、`describe('I18N-004 …')` を追加した（既存テストは無変更、18 件追加。全体で 461 → 479 件）。
+
+- キーが 3 ロケールにあり、`CONTENT_MESSAGE_KEYS` に登録され、`filter.js` が使うこと。`{{COUNT}}` が 1 つずつあること。
+- 新しいリスナー、イベント、global が増えていないこと（`message` リスナーは 1 つ）。
+- 初期化前の中国語、ja / en / zh_CN の表示、初期化後の再描画、言語変更時の再描画、同一メッセージの再送で再描画しないこと、対象が無いとき DOM に触れないこと。
+- `{{COUNT}}` の関数形式の置換（`$&` などが展開されない）。
+- 悪意ある HTML 文字列（`<img onerror>`、`"><script>`、`<b>`）がタグにならないこと。
+- 不正なメッセージ（null、配列、型違い、`{{COUNT}}` 欠落、空白、生のキー、継承プロパティ）で例外や再描画が起きないこと。
+- コピーの成功・失敗と、1200ms 後の復元（途中の言語変更を含む）、初期化前のコピー。
+- 診断テキストが固定の形式のままであること。
+- メッセージの有無でフィルタリング結果（非表示、Free ゲート、ルール源）が同一であること。`gate.js` が Free のままであること。
+- 有効性: `filter.js` を HEAD 版に戻すと 8 件が失敗する。
+
+### 未確認事項
+
+- 実機での表示。`XVM_REQUEST_SETTINGS` の応答がバーの最初の描画より遅れる実際の頻度（遅れても、受信後の再描画で切り替わる）。
+- `styles.css` の `.xvm-cf-*` に対して、日本語・英語の文言がレイアウトに収まるか。
+- `reset()` の影響の実ブラウザでの再現（上記）。

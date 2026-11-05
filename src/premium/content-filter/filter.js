@@ -49,6 +49,39 @@
   let source = createLocalRuleSource(window.__xvmContentFilterBuiltinRules);
   let rulesSourceLabel = 'bundled';
 
+  // I18N-004 — localized strings for the summary bar. bridge.js pushes them
+  // inside XVM_SETTINGS_UPDATE (same pattern as starchart.js / bookmark-menu.js).
+  // Only these keys are read; until valid values arrive the original Chinese
+  // text is used. Diagnostic copy text (formatHiddenRecordsForCopy) is a
+  // bug-report format and is intentionally NOT localized.
+  const I18N_FALLBACK = {
+    contentCfSummaryTitle: '已过滤 {{COUNT}} 条回复 - XVM',
+    contentCfCopy: '复制',
+    contentCfCopyTitle: '复制命中的推文和规则',
+    contentCopyMdDone: '已复制',
+    contentCopyMdCopyFailed: '复制失败',
+  };
+  let i18nStrings = {};
+  function tt(key) {
+    return i18nStrings[key] || I18N_FALLBACK[key];
+  }
+  // Returns true only when at least one accepted string actually changed.
+  function updateI18n(messages) {
+    if (!messages || typeof messages !== 'object' || Array.isArray(messages)) return false;
+    const next = { ...i18nStrings };
+    for (const key of Object.keys(I18N_FALLBACK)) {
+      if (!Object.prototype.hasOwnProperty.call(messages, key)) continue;
+      const v = messages[key];
+      // bridge.js falls back to the raw key for unresolved messages: reject that too.
+      if (typeof v !== 'string' || !v.trim() || v === key) continue;
+      if (key === 'contentCfSummaryTitle' && !v.includes('{{COUNT}}')) continue;
+      next[key] = v;
+    }
+    const changed = Object.keys(I18N_FALLBACK).some((k) => next[k] !== i18nStrings[k]);
+    if (changed) i18nStrings = next;
+    return changed;
+  }
+
   function updateRulesFromRemote(payload, label) {
     if (!payload || typeof payload !== 'object') return;
     if (payload.version !== REMOTE_RULES_CURRENT_VERSION) return;
@@ -143,6 +176,13 @@
       updateSettings(event.data.settings);
     } else if (event.data?.type === 'XVM_CONTENT_FILTER_RULES_UPDATE') {
       updateRulesFromRemote(event.data.rules, event.data.source);
+    } else if (event.data?.type === 'XVM_SETTINGS_UPDATE') {
+      // Re-render only when a localized string really changed, and only if
+      // there is something on screen to refresh.
+      if (updateI18n(event.data.messages)) {
+        summarySignature = '';
+        if (hiddenRecords.size) updateSummary();
+      }
     }
   });
 
@@ -649,16 +689,17 @@
         .join(' / ');
       return `<div class="xvm-cf-item">${r.avatar ? `<img src="${escapeAttr(r.avatar)}" alt="">` : '<span></span>'}<div><b>${escapeHtml(r.name)} ${r.handle ? `@${escapeHtml(r.handle)}` : ''}</b><p>${escapeHtml((r.content || '').slice(0, 120))}</p><span class="xvm-cf-tags">${tags}</span></div></div>`;
     }).join('');
-    bar.innerHTML = `<div class="xvm-cf-head"><strong>已过滤 ${hiddenRecords.size} 条回复 - XVM</strong><button type="button" class="xvm-cf-copy" title="复制命中的推文和规则">复制</button></div><div class="xvm-cf-list">${items}</div>`;
+    const titleText = tt('contentCfSummaryTitle').replace('{{COUNT}}', () => String(hiddenRecords.size));
+    bar.innerHTML = `<div class="xvm-cf-head"><strong>${escapeHtml(titleText)}</strong><button type="button" class="xvm-cf-copy" title="${escapeAttr(tt('contentCfCopyTitle'))}">${escapeHtml(tt('contentCfCopy'))}</button></div><div class="xvm-cf-list">${items}</div>`;
   }
 
   function copyHiddenRecords(button) {
     const text = formatHiddenRecordsForCopy(Array.from(hiddenRecords.values()).reverse());
     writeClipboard(text).then((ok) => {
       if (!button) return;
-      const prev = button.textContent || '复制';
-      button.textContent = ok ? '已复制' : '复制失败';
-      setTimeout(() => { button.textContent = prev; }, 1200);
+      button.textContent = ok ? tt('contentCopyMdDone') : tt('contentCopyMdCopyFailed');
+      // Restore with the label for the language active at that moment.
+      setTimeout(() => { button.textContent = tt('contentCfCopy'); }, 1200);
     });
   }
 

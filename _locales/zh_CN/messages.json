@@ -625,5 +625,8 @@
   "contentAiNoTweetFound": { "message": "未找到推文内容" },
   "contentBookmarkTimelineRefreshFailed": { "message": "书签内容刷新失败：{{ERROR}}" },
   "contentUnknownError": { "message": "未知错误" },
-  "contentLbLocateFailed": { "message": "无法定位该推文：页面已回收该条目" }
+  "contentLbLocateFailed": { "message": "无法定位该推文：页面已回收该条目" },
+  "contentCfSummaryTitle": { "message": "已过滤 {{COUNT}} 条回复 - XVM" },
+  "contentCfCopy": { "message": "复制" },
+  "contentCfCopyTitle": { "message": "复制命中的推文和规则" }
 }

@@ -627,5 +627,8 @@
   "contentAiNoTweetFound": { "message": "Tweet content not found" },
   "contentBookmarkTimelineRefreshFailed": { "message": "Bookmark refresh failed: {{ERROR}}" },
   "contentUnknownError": { "message": "Unknown error" },
-  "contentLbLocateFailed": { "message": "Can't locate this tweet: the page has already removed it" }
+  "contentLbLocateFailed": { "message": "Can't locate this tweet: the page has already removed it" },
+  "contentCfSummaryTitle": { "message": "Filtered replies: {{COUNT}} - XVM" },
+  "contentCfCopy": { "message": "Copy" },
+  "contentCfCopyTitle": { "message": "Copy matched replies and rules" }
 }

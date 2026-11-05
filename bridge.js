@@ -239,6 +239,12 @@ const CONTENT_MESSAGE_KEYS = [
   'contentBookmarkTimelineRefreshFailed',
   'contentUnknownError',
   'contentLbLocateFailed',
+  // I18N-004 — content-filter summary bar (src/premium/content-filter/filter.js,
+  // which re-receives these via XVM_SETTINGS_UPDATE). Copy success/failure reuse
+  // contentCopyMdDone / contentCopyMdCopyFailed above.
+  'contentCfSummaryTitle',
+  'contentCfCopy',
+  'contentCfCopyTitle',
 ];
 
 const DEFAULT_FEATURES = {
