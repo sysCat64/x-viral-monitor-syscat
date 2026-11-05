@@ -4529,7 +4529,7 @@ async function handleGrokGenerate(btn, editable, promptTemplate = null) {
     const comments = aiProvider === 'x-grok'
       ? await (async () => {
         if (!window.__xvmGrok) {
-          throw new Error('插件未正确加载（lib/grok-reply.js 缺失），请重载扩展');
+          throw Object.assign(new Error('插件未正确加载（lib/grok-reply.js 缺失），请重载扩展'), { code: 'aiErrGrokModuleMissing' });
         }
         return window.__xvmGrok.generate({
           tweetText,

@@ -656,5 +656,12 @@
   "aiErrModelRequired": { "message": "Enter a model name first" },
   "aiErrGrokRoute": { "message": "The current provider is X Grok. Use the in-page Grok generation path." },
   "aiErrGenerateFailed": { "message": "AI generation failed" },
-  "aiErrGenerateTimeout": { "message": "AI generation timed out. Check the service connection." }
+  "aiErrGenerateTimeout": { "message": "AI generation timed out. Check the service connection." },
+  "aiErrGrokNoCapturedTx": { "message": "Open X's built-in Grok (x.com/i/grok) and send any message so the extension can capture a valid signature, then try again." },
+  "aiErrGrokNotSent": { "message": "The Grok request could not be sent. Refresh X and try again." },
+  "aiErrGrok404Stale": { "message": "Grok request returned 404 (the cached signature has expired). Refresh X and try again; if it keeps failing, update the extension." },
+  "aiErrGrok404Rejected": { "message": "Grok request returned 404 (X did not accept the current signature, or the endpoint has changed). Refresh X and try again; if it keeps failing, update the extension." },
+  "aiErrGrokRequestFailed": { "message": "Grok request failed: {{STATUS}} {{STATUSTEXT}}" },
+  "aiErrGrokNoComments": { "message": "No reply code blocks could be parsed from Grok's response" },
+  "aiErrGrokModuleMissing": { "message": "The extension did not load correctly (lib/grok-reply.js is missing). Reload the extension." }
 }

@@ -4,7 +4,7 @@
 // locale key) and `params` are ADDED. Display (popup.js) translates `code` and
 // falls back to the legacy string for anything unexpected.
 // R1 (external-provider generation) is covered by ai-generation-errors-i18n.test.js;
-// R3 (in-page Grok generation) is a later commit.
+// R3 (in-page Grok generation) is covered by grok-generation-errors-i18n.test.js.
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -402,10 +402,10 @@ describe('R2 grok-reply checkReady: message preserved, code added to errors only
     expect(grokSrc).toContain("result.code = 'aiErrGrokCheckFailed'");
   });
 
-  it('in-page generation (R3) errors keep their plain messages', async () => {
+  it('in-page generation (R3) errors keep their messages (codes are covered by grok-generation-errors-i18n.test.js)', async () => {
     const { grok } = load({ cookie: 'ct0=c', xct: null, fetch: async () => { throw new Error('must not send'); } });
     await expect(grok.generate({ tweetText: 't' })).rejects.toThrow('插件未正确加载（lib/x-client-transaction.js 缺失），请重载扩展');
-    expect(grokSrc).toContain("throw new Error('Grok 返回中没有解析到评论代码块');");
-    expect(grokSrc).toContain("throw new Error(`Grok 请求失败：${res.status} ${res.statusText || ''}`.trim());");
+    expect(grokSrc).toContain("new Error('Grok 返回中没有解析到评论代码块')");
+    expect(grokSrc).toContain("new Error(`Grok 请求失败：${res.status} ${res.statusText || ''}`.trim())");
   });
 });

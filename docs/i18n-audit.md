@@ -447,7 +447,7 @@ toastM2Hint, activateTitle, grokShortTemplateLabel, cfLockedHint
 
 ## 付録 B: 実装・検証結果（Phase 2-1: I18N-007）
 
-実施日: 2026-11-05。ブランチ `ja-fix`。未コミット。
+実施日: 2026-11-05。ブランチ `ja-fix`（コミット `f13a800`）。
 
 ### 修正内容
 
@@ -810,4 +810,75 @@ background.js XVM_AI_GENERATE  (codedError / httpErrorMeta を再利用)
 
 - 実機でのトースト表示（Ollama・OpenAI 互換の各エラー）。
 - `chrome.runtime.lastError` が実際に発生した場合の表示（テストでは bridge の分岐を直接実行して検証）。
-- R3 のコード登録は R3 のコミットで行う（現状は従来の文字列のまま）。
+- R3 のコード登録（R1 実装時点では未登録で、R3 のエラーは従来の文字列のまま表示されていた）: R3 で必要な 9 キーは、その後の R3 実装で `CONTENT_MESSAGE_KEYS` に登録済み。詳細は付録 H を参照。
+
+## 付録 H: I18N-003 / R3（ページ内 Grok 生成エラー）実装結果（Phase 2-5c）
+
+I18N-003 の最終工程。R1 の `aiErrorText()` と `showGrokErrorToast(msg, coded)` を再利用し、新しい翻訳機構は作っていない。
+
+### 経路
+
+```
+lib/grok-reply.js generate()  が Error（message は不変）に code / params を付けて throw
+  → 同じ MAIN world の content.js handleGrokGenerate() の catch（Error はそのまま伝播）
+  → showGrokErrorToast(err.message, err)  → aiErrorText() が最終表示だけを翻訳
+```
+
+### 変更点
+
+| ファイル | 変更 |
+|---|---|
+| `lib/grok-reply.js` | `generate()` の各エラーに `Object.assign(new Error(<従来の文言>), { code, params })` で `code` を付与。404 は `staleSignature` の真偽で `aiErrGrok404Stale` / `aiErrGrok404Rejected` を区別（判定条件は従来と同一）。HTTP 失敗は `STATUS`（数値）と `STATUSTEXT` を `params` に持つ。`Error.message` は句読点・動的な値を含めて変更なし |
+| `content.js` | `lib/grok-reply.js` 未ロードのエラー 1 箇所に `aiErrGrokModuleMissing` を付与 |
+| `bridge.js` | R3 で使うコード 9 件を `CONTENT_MESSAGE_KEYS` に登録 |
+| `_locales/{en,ja,zh_CN}` | 7 キーを追加 |
+
+**変更していないもの**: Grok のリクエスト構築・署名生成・ストリーミング処理、返信候補を解析するロジック、プロンプト（I18N-010）、ライセンス・ゲート判定、R1 の契約（`aiErrorText` と `showGrokErrorToast`）、R2 の契約（`checkReady()` の成功時 `{ ok, message }`、`XVM_GROK_CHECK_RESULT`、bridge のサニタイズ、`popup.js` の `aiResultText()`）、ログ出力と表示経路（追加なし）。
+
+### コード対応表
+
+| コード | 元の箇所 | params | 備考 |
+|---|---|---|---|
+| `aiErrGrokNoCapturedTx` | `buildHeaders` の捕捉署名なし | — | 新規。通常の経路では到達しにくい |
+| `aiErrGrokXctMissing` | 署名生成モジュールなし | — | **R2 で定義済みを再利用** |
+| `aiErrGrokSignInit` | 署名の初期化失敗 | `REASON` | **R2 で定義済みを再利用** |
+| `aiErrGrokNotSent` | リクエスト未送信 | — | 新規。通常の経路では到達しにくい |
+| `aiErrGrok404Stale` | 404（キャッシュ署名の失効） | — | 新規 |
+| `aiErrGrok404Rejected` | 404（署名拒否・接口変更） | — | 新規 |
+| `aiErrGrokRequestFailed` | その他の HTTP 失敗 | `STATUS`, `STATUSTEXT` | 新規 |
+| `aiErrGrokNoComments` | 解析可能な候補なし | — | 新規 |
+| `aiErrGrokModuleMissing` | `content.js` で Grok モジュール未ロード | — | 新規 |
+
+- `buildHeaders()` は接続テスト（R2）と生成の両方で使われる。共有エラー（`aiErrGrokXctMissing`、`aiErrGrokSignInit`）は R2 で付けた `code` をそのまま使い、重複定義していない。
+- R2 専用のコード（`aiErrGrokNoSession`、`aiErrGrokCheckFailed`、`aiErrGrokCheckTimeout`、`aiOkGrokReady` など）は登録していない。登録した R3 の 9 件のうち、新規は 7 件。
+- ブラウザ由来の `fetch` の失敗（`Failed to fetch` など）は、従来どおり `code` なしでそのまま表示される。
+- zh_CN の文言は従来の中国語メッセージと同一。`aiErrGrokRequestFailed` は `{{STATUS}} {{STATUSTEXT}}` を末尾の空白除去つきで表示するため、状態テキストが空でも従来と一致する。
+
+### 追加キー（7 件）
+
+`aiErrGrokNoCapturedTx`、`aiErrGrokNotSent`、`aiErrGrok404Stale`、`aiErrGrok404Rejected`、`aiErrGrokRequestFailed`、`aiErrGrokNoComments`、`aiErrGrokModuleMissing`
+
+### テスト
+
+- 新規 `tests/grok-generation-errors-i18n.test.js`（34 件）。
+  - 8 シナリオ（署名モジュールなし、署名初期化失敗（理由あり・なし）、404 の 2 種類、HTTP 500（状態テキストあり）、HTTP 403（状態テキストなし）、候補なし）で、従来の中国語 `Error.message` の完全一致、`code`、`params` を確認。404 の 2 種類を区別できること。
+  - 全シナリオで、zh_CN の最終表示が従来文字列と一致し、ja / en が翻訳され、未置換の `{{` が残らないこと。
+  - HTTP ステータスや署名失敗の理由などの動的な値、空の状態テキスト、`$&` / `$1` / `{{REASON}}` を含む値が 1 回の置換で変質しないこと。
+  - 未知・未登録（R2 専用）・不正なコード、旧形式、生のキー名、`params` の不足・不正、翻訳受信前（中国語フォールバック）。
+  - R3 のコードが `CONTENT_MESSAGE_KEYS` に 1 回ずつ登録され、R2 専用コードは登録されていないこと。
+  - 同じ `Error` オブジェクトが catch まで届くこと（再ラップなし）。
+  - R1 のトースト表示、R2 の `checkReady()` の形、成功時の戻り値（`['第一条', '第二条']`）、リクエスト構築・署名・ストリーム読み取りのコードが変わっていないこと。
+- 更新した既存テスト（R3 の意図的な変更に対応）:
+  - `ai-generation-errors-i18n.test.js`: 「R3 のコードは未登録」を、「R3 が必要なコードだけが登録され、R2 専用コードは未登録」の検証に置き換えた。未登録フォールバックの例を、R3 コードから R2 専用コードに変更。R3 の静的な文言検査は、メッセージ文字列の維持を確認する形に更新。
+  - `ai-test-connection-i18n.test.js`: R3 の静的な文言検査を、同様に更新。
+- 有効性: `lib/grok-reply.js`、`content.js`、`bridge.js` を HEAD 版に戻すと、新規テストが 19 件失敗する。
+
+### 未確認事項
+
+- 実機でのトースト表示（ページ内 Grok の各エラー）。
+- `aiErrGrokNoCapturedTx` と `aiErrGrokNotSent` は、通常の経路では到達しにくく、機能テストでは発生させられていない（メッセージとコードはソースの静的検査のみ）。
+- `content.js` の `aiErrGrokModuleMissing` も、機能テストでは発生させられていない（静的検査のみ）。
+
+### I18N-003 の完了状況
+
+R2（接続テスト）、R1（外部プロバイダーの生成）、R3（ページ内 Grok 生成）の 3 経路すべてで、従来の `message` / `error` を保ったまま `code` を付加し、表示側で翻訳する方式が完成した。

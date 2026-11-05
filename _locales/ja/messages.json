@@ -654,5 +654,12 @@
   "aiErrModelRequired": { "message": "先にモデル名を入力してください" },
   "aiErrGrokRoute": { "message": "現在のプロバイダーは X Grok です。ページ内の Grok 生成経路を使用してください。" },
   "aiErrGenerateFailed": { "message": "AI 生成に失敗しました" },
-  "aiErrGenerateTimeout": { "message": "AI 生成がタイムアウトしました。サービスへの接続を確認してください。" }
+  "aiErrGenerateTimeout": { "message": "AI 生成がタイムアウトしました。サービスへの接続を確認してください。" },
+  "aiErrGrokNoCapturedTx": { "message": "X 内蔵の Grok（x.com/i/grok）を開き、任意のメッセージを送信して、拡張機能が有効な署名を取得できるようにしてから、もう一度お試しください。" },
+  "aiErrGrokNotSent": { "message": "Grok のリクエストを送信できませんでした。X を再読み込みしてやり直してください。" },
+  "aiErrGrok404Stale": { "message": "Grok のリクエストが 404 を返しました（キャッシュされた署名が失効しています）。X を再読み込みしてやり直してください。失敗が続く場合は拡張機能を更新してください。" },
+  "aiErrGrok404Rejected": { "message": "Grok のリクエストが 404 を返しました（X が現在の署名を受け付けなかったか、エンドポイントが変更されました）。X を再読み込みしてやり直してください。失敗が続く場合は拡張機能を更新してください。" },
+  "aiErrGrokRequestFailed": { "message": "Grok のリクエストに失敗しました: {{STATUS}} {{STATUSTEXT}}" },
+  "aiErrGrokNoComments": { "message": "Grok の応答から返信のコードブロックを解析できませんでした" },
+  "aiErrGrokModuleMissing": { "message": "拡張機能が正しく読み込まれていません（lib/grok-reply.js がありません）。拡張機能を再読み込みしてください。" }
 }

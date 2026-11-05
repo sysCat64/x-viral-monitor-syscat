@@ -160,9 +160,16 @@ describe('R1 locale keys', () => {
     for (const k of R1_NEW) expect(contentSrc.includes(`'${k}'`) || bgSrc.includes(`'${k}'`), k).toBe(true);
   });
 
-  it('the R3 (in-page Grok) codes are not registered yet, so R3 errors still show their original text', () => {
-    for (const k of ['aiErrGrokXctMissing', 'aiErrGrokSignInit', 'aiErrGrokNoSession', 'aiErrGrokCheckFailed']) {
-      expect(bridgeKeys.has(k), k).toBe(false);
+  it('registers exactly the R3 (in-page Grok generation) codes it needs; R2-only codes stay unregistered', () => {
+    // Generation-path codes (R3). aiErrGrokXctMissing / aiErrGrokSignInit are defined by R2 and reused.
+    for (const k of ['aiErrGrokNoCapturedTx', 'aiErrGrokXctMissing', 'aiErrGrokSignInit', 'aiErrGrokNotSent',
+      'aiErrGrok404Stale', 'aiErrGrok404Rejected', 'aiErrGrokRequestFailed', 'aiErrGrokNoComments', 'aiErrGrokModuleMissing']) {
+      expect(bridgeKeys.has(k), `${k} should be registered`).toBe(true);
+    }
+    // Used only by the popup connection test (R2): not needed in the content script.
+    for (const k of ['aiErrGrokNoSession', 'aiErrGrokCheckFailed', 'aiErrGrokCheckTimeout', 'aiOkGrokReady',
+      'aiErrNoActiveTab', 'aiErrNotOnX', 'aiErrNoCheckResult', 'aiOkOllamaConnected', 'aiOkOllamaModelMissing']) {
+      expect(bridgeKeys.has(k), `${k} should stay unregistered`).toBe(false);
     }
   });
 });
@@ -277,7 +284,7 @@ describe('R1 toast display', () => {
 
   it('falls back to the legacy message for unknown, unregistered, invalid and old-format errors', () => {
     expect(toastDetail('ja', 'legacy', { code: 'aiErrDoesNotExist' }).detail).toBe('legacy');
-    expect(toastDetail('ja', 'legacy', { code: 'aiErrGrokSignInit', params: { REASON: 'x' } }).detail).toBe('legacy'); // R3 code, not registered
+    expect(toastDetail('ja', 'legacy', { code: 'aiErrGrokNoSession' }).detail).toBe('legacy'); // R2-only code: not registered in the content script
     expect(toastDetail('ja', 'legacy', { code: '<script>' }).detail).toBe('legacy');
     expect(toastDetail('ja', 'legacy', { message: 'plain' }).detail).toBe('legacy');
     expect(toastDetail('ja', 'legacy', null).detail).toBe('legacy');
@@ -355,11 +362,11 @@ describe('R2 and R3 are unchanged by R1', () => {
     expect(bgSrc).toContain("response.code = 'aiTestFailed';");
   });
 
-  it('R3: in-page Grok generation errors keep their plain messages and codes are not applied to them', () => {
-    expect(contentSrc).toContain("throw new Error('插件未正确加载（lib/grok-reply.js 缺失），请重载扩展');");
-    expect(grokSrc).toContain("throw new Error('Grok 返回中没有解析到评论代码块');");
-    expect(grokSrc).toContain("throw new Error(`Grok 请求失败：${res.status} ${res.statusText || ''}`.trim());");
-    expect(grokSrc).toContain("throw generationError || new Error('Grok 请求未能发送，请刷新 X 后重试。');");
+  it('R3: the in-page Grok error messages are unchanged (codes are covered by grok-generation-errors-i18n.test.js)', () => {
+    expect(contentSrc).toContain("new Error('插件未正确加载（lib/grok-reply.js 缺失），请重载扩展')");
+    expect(grokSrc).toContain("new Error('Grok 返回中没有解析到评论代码块')");
+    expect(grokSrc).toContain("new Error(`Grok 请求失败：${res.status} ${res.statusText || ''}`.trim())");
+    expect(grokSrc).toContain("new Error('Grok 请求未能发送，请刷新 X 后重试。')");
   });
 
   it('the prompt builder and licensing are untouched', () => {

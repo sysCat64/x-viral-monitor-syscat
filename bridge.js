@@ -263,6 +263,18 @@ const CONTENT_MESSAGE_KEYS = [
   'aiErrGrokRoute',
   'aiErrGenerateFailed',
   'aiErrGenerateTimeout',
+  // I18N-003 (R3) — in-page Grok generation errors. aiErrGrokXctMissing /
+  // aiErrGrokSignInit are shared with the R2 connection test (defined there).
+  // R2-only codes (NoSession, CheckFailed, CheckTimeout, ...) stay unregistered.
+  'aiErrGrokNoCapturedTx',
+  'aiErrGrokXctMissing',
+  'aiErrGrokSignInit',
+  'aiErrGrokNotSent',
+  'aiErrGrok404Stale',
+  'aiErrGrok404Rejected',
+  'aiErrGrokRequestFailed',
+  'aiErrGrokNoComments',
+  'aiErrGrokModuleMissing',
 ];
 
 const DEFAULT_FEATURES = {
