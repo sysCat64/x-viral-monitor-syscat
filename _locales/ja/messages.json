@@ -610,5 +610,17 @@
   "cfBuiltinRule":        { "message": "内蔵" },
   "cfCustomRule":         { "message": "カスタム" },
   "cfNoRules":            { "message": "ルールはありません。" },
-  "advAppearanceTitle": { "message": "外観" }
+  "advAppearanceTitle": { "message": "外観" },
+  "contentAiButtonLabel": { "message": "AI 生成" },
+  "contentAiButtonGenerating": { "message": "生成中" },
+  "contentAiButtonTitle": { "message": "プロンプトテンプレートで返信を生成" },
+  "contentAiTemplateMenuTitle": { "message": "返信テンプレート" },
+  "contentAiOptionsTitle": { "message": "AI の返信候補" },
+  "contentAiOptionsGenerating": { "message": "生成中 {{COUNT}} 件…" },
+  "contentAiOptionsCount": { "message": "全 {{COUNT}} 件" },
+  "contentAiOptionFillTitle": { "message": "返信欄に挿入" },
+  "contentAiOptionFilledToast": { "message": "返信を挿入しました" },
+  "contentAiErrorTitle": { "message": "AI 生成に失敗しました" },
+  "contentAiErrorRetry": { "message": "もう一度お試しください" },
+  "contentAiNoTweetFound": { "message": "投稿の内容が見つかりません" }
 }

@@ -60,7 +60,7 @@ describe('AI error toast', () => {
     };
     const start = contentSrc.indexOf('function showGrokErrorToast(');
     const end = contentSrc.indexOf('function getSelectedGrokPromptTemplate()', start);
-    const ctx = { document, requestAnimationFrame: (fn) => fn(), setTimeout() {}, dismissToast() {} };
+    const ctx = { document, requestAnimationFrame: (fn) => fn(), setTimeout() {}, dismissToast() {}, i18nOr: (_key, fallback) => fallback };
     vm.runInNewContext(contentSrc.slice(start, end), ctx);
     ctx.showGrokErrorToast('<img src=x onerror=alert(1)> HTTP 429');
     expect(nodes[0].children[0].textContent).toBe('⚠ AI 生成失败');

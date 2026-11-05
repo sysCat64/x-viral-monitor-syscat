@@ -489,3 +489,62 @@ toastM2Hint, activateTitle, grokShortTemplateLabel, cfLockedHint
 - 回帰テストを 6 件から 8 件に拡張した（Unicode エスケープ重複の検出、`content` 定義の検証）。既存の翻訳データの変更は不要だった。
 - `npm run build:community` 後の `npm test`: **30 ファイル・432 テストすべて合格**（既存 424 + 新規 8）。
 - ソース変更は `_locales/ja/messages.json` のみ。ほかに新規ファイルが `tests/locale-consistency.test.js` と `docs/i18n-audit.md`。
+
+## 付録 C: I18N-002 実装結果（Phase 2-2）
+
+### 対象と境界
+
+| 区分 | 場所 | 扱い |
+|---|---|---|
+| UI 文字列（今回修正） | `content.js` の `showGrokErrorToast`（タイトルと既定の詳細）、`showGrokTemplateMenu`（見出し）、`showGrokOptions`（パネル見出し、件数ステータス、候補の title、挿入トースト）、`setGrokButtonLabel`（既定ラベル）、`handleGrokGenerate`（生成中ラベル、「推文なし」トースト）、`injectGrokReplyButtons`（AI ボタンの title） | キー化 |
+| エラーメッセージ契約（I18N-003、**今回は変更しない**） | `content.js:433` の `new Error(event.data.error \|\| 'AI 生成失败')`、`4438` 付近の `new Error('AI 生成超时…')`、`4497` 付近の `new Error('插件未正确加载…')`、`4516` 付近の `showGrokErrorToast(err?.message \|\| 'AI 生成失败')` | 文字列のまま。`Error.message` と `{ ok, error, message }` の契約を維持 |
+| Grok の入力プロンプト | `content.js` の `【原推文】` / `【对该推文的回复】`、テンプレート本文 | 翻訳しない |
+| 別 ID | `aria-label="Close"`（I18N-006）、`'书签'` 系（I18N-001） | 今回は触れない |
+
+`showGrokErrorToast` の「詳細」は、メッセージが渡されたときはそのまま表示する（契約維持）。空のときだけ `contentAiErrorRetry` を使う。
+
+### 追加した翻訳キー（12 件、3 ロケール同時、`bridge.js` の `CONTENT_MESSAGE_KEYS` に登録済み）
+
+レビュー対応で `contentAiOptionsTitle` と `contentAiButtonLabel`（en）の文言を調整済み。
+
+| キー | en | ja | zh_CN |
+|---|---|---|---|
+| `contentAiButtonLabel` | AI Generate | AI 生成 | AI 生成 |
+| `contentAiButtonGenerating` | Generating | 生成中 | 生成中 |
+| `contentAiButtonTitle` | Generate replies with a prompt template | プロンプトテンプレートで返信を生成 | 使用提示词模板生成评论 |
+| `contentAiTemplateMenuTitle` | Reply templates | 返信テンプレート | 评论模板 |
+| `contentAiOptionsTitle` | AI reply suggestions | AI の返信候補 | AI 回复候选 |
+| `contentAiOptionsGenerating` | Generating {{COUNT}}… | 生成中 {{COUNT}} 件… | 生成中 {{COUNT}}… |
+| `contentAiOptionsCount` | {{COUNT}} replies | 全 {{COUNT}} 件 | 共 {{COUNT}} 条 |
+| `contentAiOptionFillTitle` | Insert into reply box | 返信欄に挿入 | 填充到回复框 |
+| `contentAiOptionFilledToast` | Reply inserted | 返信を挿入しました | 已填充评论 |
+| `contentAiErrorTitle` | AI generation failed | AI 生成に失敗しました | AI 生成失败 |
+| `contentAiErrorRetry` | Please try again | もう一度お試しください | 请重试 |
+| `contentAiNoTweetFound` | Tweet content not found | 投稿の内容が見つかりません | 未找到推文内容 |
+
+- 既存キーは再利用しなかった。`contentCopyMdNoTweetFound` は文言が異なり（「投稿が見つかりません」）、`grokShortTemplateLabel` は「プロンプトテンプレート」で意味が違うため。
+- `contentAiOptionsTitle` は、候補パネルが X Grok 以外のプロバイダー（OpenAI 互換、Ollama）でも使われるため、プロバイダー名を含まない表現にした。`content.js` の初期化前フォールバックも `AI 回复候选` に合わせた（従来は `Grok 评论候选`）。
+- 件数は `starchart.js` と同じ `{{COUNT}}` + `.replace()` 方式にそろえた。
+- `⚠ ` は翻訳文に含めず、コード側で付けている。
+
+### 初期化前・言語変更時・失敗時の挙動
+
+- **初期化前**（`localizedStrings` が空）: `i18nOr` のフォールバックが、従来と同一の中国語文字列を返す。表示は以前と変わらない。
+- **初期化後**: bridge が登録済みキーを解決して渡す。登録漏れなら生のキー名が出る（I18N-008）ため、登録を自動テストで固定した。
+- **言語変更時**: 候補パネルの見出しは `showGrokOptions` のたびに更新する。テンプレートメニューは開くたびに生成する。AI ボタンのラベルは、生成後の `setGrokButtonLabel` で更新される。**ボタンの title は生成時の言語のまま**で、ページ再読み込みまで更新されない（既存の「構築済み DOM は再生成しない」仕様と同じ）。
+- **生成失敗時**: エラー本文は従来どおり契約のメッセージ。タイトルと既定の詳細のみ翻訳される。
+
+### 追加・変更したテスト
+
+- 新規 `tests/ai-ui-i18n.test.js`（16 件）
+  - 12 キーが 3 ロケールにあること、`bridge.js` に登録済みであること、`content.js` が全キーを使うこと。
+  - `content.js` の全 `i18nOr()` キーが `CONTENT_MESSAGE_KEYS` にあること（既存テストは `i18n()` しか見ていなかった）。
+  - AI UI 関数群に、キー化されていない CJK が残っていないこと（許可: プロンプト `【原推文】`、`new Error(…)`、`err?.message ||`）。
+  - ja / en / zh_CN での実行時解決、初期化前フォールバック、`{{COUNT}}` の置換、エラー本文が変わらないこと、`XVM_AI_GENERATE` の送信経路が変わらないこと。
+- 変更 `tests/grok-readiness.test.js`: `showGrokErrorToast` を単体実行する環境に `i18nOr` のスタブ（フォールバックを返す）を追加しただけ。期待値は変更なし。
+- 有効性の確認: `content.js` を HEAD 版に戻すと 9 件が失敗する。
+
+### 未確認事項
+
+- 実ブラウザでの表示（AI ボタン、候補パネル、テンプレートメニュー）。
+- `{{COUNT}}` の英語表現（`{{COUNT}} replies`）は件数 1 のときも複数形になる。

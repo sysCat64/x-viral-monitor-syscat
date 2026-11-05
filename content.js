@@ -3928,11 +3928,11 @@ function showGrokErrorToast(msg) {
   toast.className = 'xvm-toast xvm-toast--error xvm-toast--top';
   const title = document.createElement('div');
   title.style.fontWeight = '700';
-  title.textContent = '⚠ AI 生成失败';
+  title.textContent = `⚠ ${i18nOr('contentAiErrorTitle', 'AI 生成失败')}`;
   const detail = document.createElement('div');
   detail.style.fontSize = '12px';
   detail.style.marginTop = '4px';
-  detail.textContent = String(msg || '请重试');
+  detail.textContent = String(msg || i18nOr('contentAiErrorRetry', '请重试'));
   toast.append(title, detail);
   document.body.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add('xvm-toast--show'));
@@ -4213,9 +4213,10 @@ function showGrokTemplateMenu(anchor, editable) {
   const menu = document.createElement('div');
   menu.className = 'xvm-grok-template-menu';
   menu.innerHTML = `
-    <div class="xvm-grok-template-menu-head">评论模板</div>
+    <div class="xvm-grok-template-menu-head"></div>
     <div class="xvm-grok-template-menu-list"></div>
   `;
+  menu.querySelector('.xvm-grok-template-menu-head').textContent = i18nOr('contentAiTemplateMenuTitle', '评论模板');
   const list = menu.querySelector('.xvm-grok-template-menu-list');
   templates.forEach((tpl) => {
     const item = document.createElement('button');
@@ -4256,7 +4257,7 @@ function showGrokOptions(comments, editable, opts = {}) {
     panel.className = 'xvm-grok-options';
     panel.innerHTML = `
       <div class="xvm-grok-options-head">
-        <strong>Grok 评论候选</strong>
+        <strong class="xvm-grok-options-title"></strong>
         <span class="xvm-grok-options-status" aria-live="polite"></span>
         <button type="button" class="xvm-grok-close" aria-label="Close">×</button>
       </div>
@@ -4265,11 +4266,13 @@ function showGrokOptions(comments, editable, opts = {}) {
     panel.querySelector('.xvm-grok-close')?.addEventListener('click', closeGrokOptions);
     document.body.appendChild(panel);
   }
+  const optionsTitle = panel.querySelector('.xvm-grok-options-title');
+  if (optionsTitle) optionsTitle.textContent = i18nOr('contentAiOptionsTitle', 'AI 回复候选');
   const status = panel.querySelector('.xvm-grok-options-status');
   if (status) {
     status.textContent = opts.streaming
-      ? `生成中 ${comments.length}…`
-      : (comments.length ? `共 ${comments.length} 条` : '');
+      ? i18nOr('contentAiOptionsGenerating', '生成中 {{COUNT}}…').replace('{{COUNT}}', String(comments.length))
+      : (comments.length ? i18nOr('contentAiOptionsCount', '共 {{COUNT}} 条').replace('{{COUNT}}', String(comments.length)) : '');
   }
   const list = panel.querySelector('.xvm-grok-options-list');
   list.innerHTML = '';
@@ -4278,11 +4281,11 @@ function showGrokOptions(comments, editable, opts = {}) {
     btn.type = 'button';
     btn.className = 'xvm-grok-choice';
     btn.textContent = comment;
-    btn.title = '填充到回复框';
+    btn.title = i18nOr('contentAiOptionFillTitle', '填充到回复框');
     btn.addEventListener('click', () => {
       insertTextIntoReply(editable, comment);
       closeGrokOptions();
-      showToast('已填充评论');
+      showToast(i18nOr('contentAiOptionFilledToast', '已填充评论'));
     });
     btn.dataset.idx = String(idx + 1);
     list.appendChild(btn);
@@ -4425,7 +4428,7 @@ function showGrokOptions(comments, editable, opts = {}) {
   }
 }
 
-function setGrokButtonLabel(btn, label = 'AI 生成', loading = false) {
+function setGrokButtonLabel(btn, label = i18nOr('contentAiButtonLabel', 'AI 生成'), loading = false) {
   btn.classList.toggle('xvm-grok-generate-btn--loading', loading);
   btn.innerHTML = `<span class="xvm-grok-spark" aria-hidden="true">✦</span><span>${label}</span>`;
 }
@@ -4465,7 +4468,7 @@ async function handleGrokGenerate(btn, editable, promptTemplate = null) {
   const article = findReplyArticleForAiComposer(root);
   const replyText = getTweetTextFromArticle(article);
   if (!replyText) {
-    showGrokErrorToast('未找到推文内容');
+    showGrokErrorToast(i18nOr('contentAiNoTweetFound', '未找到推文内容'));
     delete btn.dataset.xvmBusy;
     return;
   }
@@ -4480,7 +4483,7 @@ async function handleGrokGenerate(btn, editable, promptTemplate = null) {
     ? `【原推文】\n${ogText}\n\n【对该推文的回复】\n${replyText}`
     : replyText;
   btn.disabled = true;
-  setGrokButtonLabel(btn, '生成中', true);
+  setGrokButtonLabel(btn, i18nOr('contentAiButtonGenerating', '生成中'), true);
   const epoch = ++grokGenEpoch;
   try {
     const tpl = promptTemplate || getSelectedGrokPromptTemplate();
@@ -4551,7 +4554,7 @@ function injectGrokReplyButtons(root = document) {
       btn.classList.add('xvm-grok-generate-btn--mobile-top');
     }
     setGrokButtonLabel(btn);
-    btn.title = '使用提示词模板生成评论';
+    btn.title = i18nOr('contentAiButtonTitle', '使用提示词模板生成评论');
     btn.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();

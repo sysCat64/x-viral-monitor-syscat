@@ -610,5 +610,17 @@
   "cfRulesRefreshOk":     { "message": "规则已更新。" },
   "cfRulesRefreshErr":    { "message": "拉取失败,请稍后重试。" },
   "cfAutoSaved":          { "message": "已自动保存" },
-  "advAppearanceTitle": { "message": "外观" }
+  "advAppearanceTitle": { "message": "外观" },
+  "contentAiButtonLabel": { "message": "AI 生成" },
+  "contentAiButtonGenerating": { "message": "生成中" },
+  "contentAiButtonTitle": { "message": "使用提示词模板生成评论" },
+  "contentAiTemplateMenuTitle": { "message": "评论模板" },
+  "contentAiOptionsTitle": { "message": "AI 回复候选" },
+  "contentAiOptionsGenerating": { "message": "生成中 {{COUNT}}…" },
+  "contentAiOptionsCount": { "message": "共 {{COUNT}} 条" },
+  "contentAiOptionFillTitle": { "message": "填充到回复框" },
+  "contentAiOptionFilledToast": { "message": "已填充评论" },
+  "contentAiErrorTitle": { "message": "AI 生成失败" },
+  "contentAiErrorRetry": { "message": "请重试" },
+  "contentAiNoTweetFound": { "message": "未找到推文内容" }
 }

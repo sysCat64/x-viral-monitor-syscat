@@ -222,6 +222,19 @@ const CONTENT_MESSAGE_KEYS = [
   'contentBookmarkMenuLoadFailed',
   'contentBookmarkMenuNoFolders',
   'contentBookmarkMenuNewFolderPlaceholder',
+  // I18N-002 — AI reply generation UI (content.js).
+  'contentAiButtonLabel',
+  'contentAiButtonGenerating',
+  'contentAiButtonTitle',
+  'contentAiTemplateMenuTitle',
+  'contentAiOptionsTitle',
+  'contentAiOptionsGenerating',
+  'contentAiOptionsCount',
+  'contentAiOptionFillTitle',
+  'contentAiOptionFilledToast',
+  'contentAiErrorTitle',
+  'contentAiErrorRetry',
+  'contentAiNoTweetFound',
 ];
 
 const DEFAULT_FEATURES = {

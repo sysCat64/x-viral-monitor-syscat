@@ -612,5 +612,17 @@
   "cfRulesRefreshOk":     { "message": "Rules updated." },
   "cfRulesRefreshErr":    { "message": "Fetch failed, please retry later." },
   "cfAutoSaved":          { "message": "Auto-saved" },
-  "advAppearanceTitle": { "message": "Appearance" }
+  "advAppearanceTitle": { "message": "Appearance" },
+  "contentAiButtonLabel": { "message": "AI Generate" },
+  "contentAiButtonGenerating": { "message": "Generating" },
+  "contentAiButtonTitle": { "message": "Generate replies with a prompt template" },
+  "contentAiTemplateMenuTitle": { "message": "Reply templates" },
+  "contentAiOptionsTitle": { "message": "AI reply suggestions" },
+  "contentAiOptionsGenerating": { "message": "Generating {{COUNT}}…" },
+  "contentAiOptionsCount": { "message": "{{COUNT}} replies" },
+  "contentAiOptionFillTitle": { "message": "Insert into reply box" },
+  "contentAiOptionFilledToast": { "message": "Reply inserted" },
+  "contentAiErrorTitle": { "message": "AI generation failed" },
+  "contentAiErrorRetry": { "message": "Please try again" },
+  "contentAiNoTweetFound": { "message": "Tweet content not found" }
 }
