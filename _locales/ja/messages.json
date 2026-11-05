@@ -605,5 +605,10 @@
   "cfRulesRefreshOk":     { "message": "ルールを更新しました。" },
   "cfRulesRefreshErr":    { "message": "取得に失敗しました。後ほど再試行してください。" },
   "cfAutoSaved":          { "message": "自動保存しました" },
+  "cfScopeHint":          { "message": "投稿詳細ページの返信欄にのみ適用されます。ホーム、検索、プロフィール、メインの投稿自体は対象外です。" },
+  "cfAllRulesTitle":      { "message": "すべてのルール" },
+  "cfBuiltinRule":        { "message": "内蔵" },
+  "cfCustomRule":         { "message": "カスタム" },
+  "cfNoRules":            { "message": "ルールはありません。" },
   "advAppearanceTitle": { "message": "外観" }
 }
