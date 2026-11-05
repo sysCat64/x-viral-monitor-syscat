@@ -237,6 +237,7 @@ window.addEventListener('message', (event) => {
     releaseNotesLang = RELEASE_NOTES_HTML_LANG[event.data.effectiveLanguage];
   }
   applyLocalizedUi();
+  applyBookmarkTimelineLocalizedUi();
   velocityThresholds = normalizeThresholds(event.data.thresholds);
   badgeStyle = event.data.badgeStyle === 'inline-classic' ? 'inline-classic' : 'pill-solid';
   applyBadgeStyle();
@@ -1434,8 +1435,8 @@ function renderBookmarkTimelineBadges() {
     if (!caretBtn?.parentElement) continue;
     const badge = document.createElement('span');
     badge.className = 'xvm-bookmark-timeline-badge';
-    badge.textContent = '书签';
-    badge.title = '插入的书签推文';
+    badge.textContent = btiText('contentBtiBadge', '书签');
+    badge.title = btiText('contentBtiBadgeTitle', '插入的书签推文');
     caretBtn.parentElement.insertBefore(badge, caretBtn);
   }
 }
@@ -1852,8 +1853,8 @@ function ensureBookmarkTimelineCog() {
   btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'xvm-bti-cog';
-  btn.title = '书签穿插设置';
-  btn.setAttribute('aria-label', '书签穿插设置');
+  btn.title = btiText('contentBtiSettingsTitle', '书签穿插设置');
+  btn.setAttribute('aria-label', btiText('contentBtiSettingsTitle', '书签穿插设置'));
   btn.innerHTML = `
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"></path>
@@ -1893,6 +1894,56 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+// Bookmark-insertion (书签穿插) UI strings. Values are substituted with a
+// function replacer and only ever written via textContent / escapeHtml, so
+// neither translations nor dynamic values can inject markup.
+function btiText(key, fallback, vars) {
+  let text = i18nOr(key, fallback);
+  if (vars) {
+    for (const name of Object.keys(vars)) {
+      text = text.split('{{' + name + '}}').join(String(vars[name]));
+    }
+  }
+  return text;
+}
+
+// Re-apply translations to UI that was created before localizedStrings arrived
+// (or before a language change): inserted badges, the cog button and the dialog.
+function applyBookmarkTimelineLocalizedUi() {
+  document.querySelectorAll('.xvm-bookmark-timeline-badge').forEach((badge) => {
+    badge.textContent = btiText('contentBtiBadge', '书签');
+    badge.title = btiText('contentBtiBadgeTitle', '插入的书签推文');
+  });
+  const cog = document.querySelector('.xvm-bti-cog');
+  if (cog) {
+    cog.title = btiText('contentBtiSettingsTitle', '书签穿插设置');
+    cog.setAttribute('aria-label', btiText('contentBtiSettingsTitle', '书签穿插设置'));
+  }
+  localizeBookmarkTimelineDialog();
+  renderBookmarkTimelineSettings();
+}
+
+function localizeBookmarkTimelineDialog() {
+  const root = bookmarkTimelineDialog;
+  if (!root) return;
+  const set = (selector, key, fallback) => {
+    const el = root.querySelector(selector);
+    if (el) el.textContent = btiText(key, fallback);
+  };
+  const dialog = root.querySelector('.xvm-bti-dialog');
+  if (dialog) dialog.setAttribute('aria-label', btiText('contentBtiSettingsTitle', '书签穿插设置'));
+  const close = root.querySelector('.xvm-bti-close');
+  if (close) close.setAttribute('aria-label', btiText('contentBtiClose', '关闭'));
+  set('.xvm-bti-heading', 'contentBtiHeading', '书签穿插');
+  set('.xvm-bti-sub', 'contentBtiSub', '把选中文件夹里的书签帖穿插到首页时间线里。');
+  set('.xvm-bti-enable-title', 'contentBtiEnableTitle', '启用');
+  set('.xvm-bti-enable-desc', 'contentBtiEnableDesc', '首页时间线响应返回时插入缓存书签');
+  set('.xvm-bti-frequency-title', 'contentBtiFrequencyTitle', '插入频率');
+  set('.xvm-bti-frequency-desc', 'contentBtiFrequencyDesc', '每浏览多少条时间线推文插入 1 条');
+  set('.xvm-bti-section-title', 'contentBtiFoldersTitle', '书签文件夹');
+  set('.xvm-bti-refresh', 'contentBtiRefresh', '刷新');
+}
+
 function renderBookmarkTimelineSettings() {
   if (!bookmarkTimelineDialog) return;
   const enabled = bookmarkTimelineDialog.querySelector('.xvm-bti-enabled');
@@ -1911,26 +1962,28 @@ function renderBookmarkTimelineSettings() {
     const loading = bookmarkTimelineInjectFolderIds.some((id) => bookmarkTimelineFolderStatus.get(String(id)) === 'loading');
     const parts = [];
     if (!selectedCount) {
-      parts.push('未选择文件夹');
+      parts.push(btiText('contentBtiNoFolderSelected', '未选择文件夹'));
     } else {
-      parts.push(`已选 ${selectedCount} 个文件夹`);
-      parts.push(loading ? '缓存中…' : `已缓存 ${cachedCount} 条`);
+      parts.push(btiText('contentBtiFoldersSelected', '已选 {{COUNT}} 个文件夹', { COUNT: selectedCount }));
+      parts.push(loading
+        ? btiText('contentBtiCaching', '缓存中…')
+        : btiText('contentBtiCached', '已缓存 {{COUNT}} 条', { COUNT: cachedCount }));
       const updated = bookmarkTimelineInjectFolderIds.reduce(
         (max, id) => Math.max(max, bookmarkTimelineFolderRefreshedAt.get(String(id)) || 0),
         0,
       );
-      if (!loading && updated) parts.push(`${formatBookmarkTimelineAgo(updated)}更新`);
+      if (!loading && updated) parts.push(btiText('contentBtiUpdatedAgo', '{{AGO}}更新', { AGO: formatBookmarkTimelineAgo(updated) }));
     }
     count.textContent = parts.join(' · ');
   }
   if (!list) return;
   if (!bookmarkTimelineFolders.length) {
-    list.innerHTML = '<div class="xvm-bti-empty">还没有文件夹列表，点刷新或先开启书签文件夹功能。</div>';
+    list.innerHTML = `<div class="xvm-bti-empty">${escapeHtml(btiText('contentBtiNoFolders', '还没有文件夹列表，点刷新或先开启书签文件夹功能。'))}</div>`;
     return;
   }
   list.innerHTML = bookmarkTimelineFolders.map((folder) => {
     const id = String(folder.id || '');
-    const name = String(folder.name || id || '未命名文件夹');
+    const name = String(folder.name || id || btiText('contentBtiUnnamedFolder', '未命名文件夹'));
     const isSelected = selected.has(id);
     const cached = bookmarkTimelineEntryCache.get(id)?.length || 0;
     const status = bookmarkTimelineFolderStatus.get(id);
@@ -1938,17 +1991,19 @@ function renderBookmarkTimelineSettings() {
     let badgeText = '';
     if (status === 'loading') {
       badgeClass += ' is-loading';
-      badgeText = '缓存中…';
+      badgeText = btiText('contentBtiCaching', '缓存中…');
     } else if (status === 'error') {
       badgeClass += ' is-error';
-      badgeText = '刷新失败';
+      badgeText = btiText('contentBtiFolderFailed', '刷新失败');
     } else if (cached) {
-      badgeText = cached >= BOOKMARK_TIMELINE_FETCH_CAP ? `${BOOKMARK_TIMELINE_FETCH_CAP}+ 条` : `${cached} 条`;
+      badgeText = cached >= BOOKMARK_TIMELINE_FETCH_CAP
+        ? btiText('contentBtiFolderCountCapped', '{{COUNT}}+ 条', { COUNT: BOOKMARK_TIMELINE_FETCH_CAP })
+        : btiText('contentBtiFolderCount', '{{COUNT}} 条', { COUNT: cached });
     } else if (isSelected && bookmarkTimelineInjectEnabled) {
       badgeClass += ' is-empty';
-      badgeText = '待缓存';
+      badgeText = btiText('contentBtiFolderPending', '待缓存');
     }
-    const badge = badgeText ? `<span class="${badgeClass}">${badgeText}</span>` : '';
+    const badge = badgeText ? `<span class="${badgeClass}">${escapeHtml(badgeText)}</span>` : '';
     return `
       <label class="xvm-bti-folder">
         <input type="checkbox" value="${escapeHtml(id)}" ${isSelected ? 'checked' : ''}>
@@ -1960,12 +2015,12 @@ function renderBookmarkTimelineSettings() {
 
 function formatBookmarkTimelineAgo(ts) {
   const diff = Date.now() - (Number(ts) || 0);
-  if (diff < 60 * 1000) return '刚刚';
+  if (diff < 60 * 1000) return btiText('contentBtiJustNow', '刚刚');
   const mins = Math.floor(diff / (60 * 1000));
-  if (mins < 60) return `${mins} 分钟前`;
+  if (mins < 60) return btiText('contentBtiMinutesAgo', '{{COUNT}} 分钟前', { COUNT: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  return `${Math.floor(hours / 24)} 天前`;
+  if (hours < 24) return btiText('contentBtiHoursAgo', '{{COUNT}} 小时前', { COUNT: hours });
+  return btiText('contentBtiDaysAgo', '{{COUNT}} 天前', { COUNT: Math.floor(hours / 24) });
 }
 
 function showBookmarkTimelineSettings() {
@@ -1976,27 +2031,28 @@ function showBookmarkTimelineSettings() {
   const backdrop = document.createElement('div');
   backdrop.className = 'xvm-bti-backdrop';
   backdrop.innerHTML = `
-    <div class="xvm-bti-dialog" role="dialog" aria-modal="true" aria-label="书签穿插设置">
-      <button class="xvm-bti-close" type="button" aria-label="关闭">×</button>
-      <h2>书签穿插</h2>
-      <p class="xvm-bti-sub">把选中文件夹里的书签帖穿插到首页时间线里。</p>
+    <div class="xvm-bti-dialog" role="dialog" aria-modal="true">
+      <button class="xvm-bti-close" type="button">×</button>
+      <h2 class="xvm-bti-heading"></h2>
+      <p class="xvm-bti-sub"></p>
       <label class="xvm-bti-row">
-        <span><b>启用</b><small>首页时间线响应返回时插入缓存书签</small></span>
+        <span><b class="xvm-bti-enable-title"></b><small class="xvm-bti-enable-desc"></small></span>
         <input class="xvm-bti-enabled" type="checkbox">
       </label>
       <label class="xvm-bti-row">
-        <span><b>插入频率</b><small>每浏览多少条时间线推文插入 1 条</small></span>
+        <span><b class="xvm-bti-frequency-title"></b><small class="xvm-bti-frequency-desc"></small></span>
         <input class="xvm-bti-every" type="number" min="5" max="100" step="1" inputmode="numeric">
       </label>
-      <div class="xvm-bti-section-title">书签文件夹</div>
+      <div class="xvm-bti-section-title"></div>
       <div class="xvm-bti-folders"></div>
       <div class="xvm-bti-footer">
         <span class="xvm-bti-count"></span>
-        <button class="xvm-bti-refresh" type="button">刷新</button>
+        <button class="xvm-bti-refresh" type="button"></button>
       </div>
     </div>`;
   bookmarkTimelineDialog = backdrop;
   document.body.appendChild(backdrop);
+  localizeBookmarkTimelineDialog();
   renderBookmarkTimelineSettings();
   backdrop.addEventListener('click', (ev) => {
     if (ev.target === backdrop || ev.target.closest('.xvm-bti-close')) {
@@ -2024,7 +2080,9 @@ function showBookmarkTimelineSettings() {
     window.postMessage({ type: 'XVM_REQUEST_FOLDER_REFRESH' }, '*');
     window.postMessage({ type: 'XVM_BOOKMARK_TIMELINE_REFRESH', folderIds: bookmarkTimelineInjectFolderIds }, '*');
     window.postMessage({ type: 'XVM_REQUEST_SETTINGS' }, '*');
-    showToast(bookmarkTimelineInjectFolderIds.length ? '正在刷新书签内容' : '请先勾选书签文件夹');
+    showToast(bookmarkTimelineInjectFolderIds.length
+      ? btiText('contentBtiToastRefreshing', '正在刷新书签内容')
+      : btiText('contentBtiToastSelectFolder', '请先勾选书签文件夹'));
   });
 }
 function armBodyTablistWatch() {
