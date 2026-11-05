@@ -34,6 +34,33 @@
     return key;
   }
 
+  // Like t(), but returns '' when the key has no message so callers can fall
+  // back to a generic label (unknown ids, remote-added rules, new enum values).
+  function tOpt(key, ...subs) {
+    try {
+      const v = chrome?.i18n?.getMessage?.(key, subs.length ? subs.map(String) : undefined);
+      if (v && v !== key) return v;
+    } catch (_) {}
+    return '';
+  }
+  const idKey = (s) => String(s ?? '').replace(/[^A-Za-z0-9_]/g, '_');
+  // Display-only labels. Internal values (type / field / severity / id) are
+  // never rewritten; unknown values fall back to the raw string.
+  const fieldLabel = (v) => tOpt(`cfField_${idKey(v)}`) || String(v ?? '');
+  const typeLabel = (v) => tOpt(`cfType_${idKey(v)}`) || String(v ?? '');
+  const severityLabel = (v) => tOpt(`cfSev_${idKey(v)}`) || String(v ?? '');
+  const LEVEL_LABEL_KEYS = { light: 'cfLevelLight', standard: 'cfLevelStandard', strict: 'cfLevelStrict' };
+
+  function pickerOptionsHtml() {
+    const opts = (values, label) => values
+      .map((v) => `<option value="${escapeAttr(v)}">${escapeHtml(label(v))}</option>`).join('');
+    return {
+      type: opts(TYPES, typeLabel),
+      field: opts(FIELDS, fieldLabel),
+      severity: opts(SEVERITIES, severityLabel),
+    };
+  }
+
   function storageGet(key, fallback) {
     return new Promise((resolve) => {
       try { chrome.storage.local.get(key, (o) => resolve(o?.[key] ?? fallback)); }
@@ -148,6 +175,7 @@
   function buildSection() {
     const section = document.getElementById('content-filter-section');
     if (!section) return null;
+    const pickers = pickerOptionsHtml();
     section.innerHTML = `
       <h2 class="cf-title" data-k="cfTitle"></h2>
       <p class="rf-rule-hint" data-k="cfScopeHint"></p>
@@ -183,9 +211,9 @@
       <details class="cf-custom" id="cf-custom-details">
         <summary data-k="cfCustomTitle"></summary>
         <div class="cf-add-grid">
-          <select id="cf-type">${TYPES.map((v) => `<option value="${v}">${v}</option>`).join('')}</select>
-          <select id="cf-field">${FIELDS.map((v) => `<option value="${v}">${v}</option>`).join('')}</select>
-          <select id="cf-severity">${SEVERITIES.map((v) => `<option value="${v}">${v}</option>`).join('')}</select>
+          <select id="cf-type">${pickers.type}</select>
+          <select id="cf-field">${pickers.field}</select>
+          <select id="cf-severity">${pickers.severity}</select>
           <input id="cf-value" type="text" data-placeholder-k="cfValue" />
         </div>
         <button type="button" id="cf-add" class="rf-btn" data-k="cfAddRule"></button>
@@ -262,7 +290,7 @@
     settings.customRules.forEach((rule, idx) => {
       const row = document.createElement('div');
       row.className = 'cf-custom-row';
-      row.innerHTML = `<span>${rule.type}/${rule.field}/${rule.severity}: ${escapeHtml(rule.value)}</span><button type="button" data-del="${idx}" aria-label="${t('cfDeleteRule')}">×</button>`;
+      row.innerHTML = `<span>${escapeHtml(typeLabel(rule.type))} / ${escapeHtml(fieldLabel(rule.field))} / ${escapeHtml(severityLabel(rule.severity))}: ${escapeHtml(rule.value)}</span><button type="button" data-del="${idx}" aria-label="${t('cfDeleteRule')}">×</button>`;
       list.appendChild(row);
     });
   }
@@ -270,38 +298,73 @@
   function renderAllRules(section, settings) {
     const list = section.querySelector('#cf-all-rules');
     if (!list) return;
+    // innerHTML replacement would reset every <details>; remember what the
+    // user expanded / collapsed so auto-save and remote updates don't undo it.
+    const openRules = new Set();
+    const closedGroups = new Set();
+    list.querySelectorAll?.('details.cf-rule-raw[open]').forEach((el) => openRules.add(el.dataset.ruleKey));
+    list.querySelectorAll?.('details.cf-rule-group:not([open])').forEach((el) => closedGroups.add(el.dataset.group));
+    list.innerHTML = renderAllRulesHtml(settings, { openRules, closedGroups });
+  }
+
+  function renderAllRulesHtml(settings, opts = {}) {
+    const openRules = opts.openRules || new Set();
+    const closedGroups = opts.closedGroups || new Set();
     const src = builtinRules();
     const builtins = (src.rules || []).map((rule) => ({ ...rule, source: 'builtin' })).filter((rule) => rule.id && rule.value);
-    const customs = settings.customRules.map((rule, idx) => ({ ...rule, source: 'custom', customIndex: idx }));
+    const customs = (settings.customRules || []).map((rule, idx) => ({ ...rule, source: 'custom', customIndex: idx }));
     const groups = new Map();
     for (const rule of [...builtins, ...customs]) {
       const key = rule.field || 'content';
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(rule);
     }
-    if (!groups.size) {
-      list.innerHTML = `<p class="rf-rule-hint">${t('cfNoRules')}</p>`;
-      return;
-    }
-    list.innerHTML = Array.from(groups.entries()).map(([field, rules]) => `
-      <details class="cf-rule-group" open>
-        <summary>${escapeHtml(field)} · ${rules.length}</summary>
+    if (!groups.size) return `<p class="rf-rule-hint">${t('cfNoRules')}</p>`;
+    return Array.from(groups.entries()).map(([field, rules]) => `
+      <details class="cf-rule-group" data-group="${escapeAttr(field)}"${closedGroups.has(field) ? '' : ' open'}>
+        <summary>${escapeHtml(fieldLabel(field))} · ${rules.length}</summary>
         <div class="cf-rule-items">
-          ${rules.map(renderRuleRow).join('')}
+          ${rules.map((rule) => renderRuleRow(rule, openRules)).join('')}
         </div>
       </details>
     `).join('');
   }
 
-  function renderRuleRow(rule) {
-    const level = ruleLevels(rule.id).join('/') || '-';
-    const readonly = rule.source !== 'custom';
-    const label = readonly ? t('cfBuiltinRule') : t('cfCustomRule');
-    const action = readonly ? '' : `<button type="button" data-del-rule="${rule.customIndex}" aria-label="${t('cfDeleteRule')}">×</button>`;
-    return `<div class="cf-rule-row" data-source="${escapeAttr(rule.source || '')}">
+  function ruleDescription(rule) {
+    return tOpt(`cfRule_${idKey(rule.id)}`)
+      || tOpt('cfRuleGenericDesc', fieldLabel(rule.field), typeLabel(rule.type))
+      || `${typeLabel(rule.type)} / ${fieldLabel(rule.field)}`;
+  }
+
+  function renderRuleRow(rule, openRules = new Set()) {
+    const custom = rule.source === 'custom';
+    const label = custom ? t('cfCustomRule') : t('cfBuiltinRule');
+    const metaParts = [
+      label,
+      typeLabel(rule.type),
+      `${t('cfRuleSevPrefix')}: ${severityLabel(rule.severity)}`,
+    ];
+    if (!custom) {
+      const levels = ruleLevels(rule.id).map((l) => t(LEVEL_LABEL_KEYS[l]));
+      // Rules in no strength tier are never applied by the filter; say so
+      // instead of showing a bare severity (e.g. "low") that reads as active.
+      metaParts.push(levels.length ? `${t('cfRuleLevelPrefix')}: ${levels.join(' / ')}` : t('cfRuleUnassigned'));
+    }
+    const meta = metaParts.map(escapeHtml).join(' · ');
+    const action = custom ? `<button type="button" data-del-rule="${rule.customIndex}" aria-label="${t('cfDeleteRule')}">×</button>` : '';
+    const key = `${custom ? 'custom' : 'builtin'}:${rule.id}`;
+    // Custom rules: the user's own text is the title. Built-ins: a readable
+    // description, with the original pattern one click away.
+    const title = custom ? rule.value : ruleDescription(rule);
+    const raw = custom ? '' : `
+        <details class="cf-rule-raw" data-rule-key="${escapeAttr(key)}"${openRules.has(key) ? ' open' : ''}>
+          <summary>${escapeHtml(t('cfRuleRawToggle'))}</summary>
+          <code>${escapeHtml(rule.value)}</code>
+        </details>`;
+    return `<div class="cf-rule-row" data-source="${escapeAttr(rule.source || '')}" data-rule-id="${escapeAttr(rule.id)}">
       <div class="cf-rule-main">
-        <b>${escapeHtml(rule.value)}</b>
-        <span>${escapeHtml(label)} · ${escapeHtml(rule.type)} / ${escapeHtml(rule.field)} / ${escapeHtml(rule.severity)} · ${escapeHtml(level)}</span>
+        <b class="cf-rule-desc">${escapeHtml(title)}</b>
+        <span>${meta}</span>${raw}
       </div>
       ${action}
     </div>`;
@@ -440,5 +503,5 @@
   }
 
   document.addEventListener('DOMContentLoaded', mount);
-  window.__xvmContentFilterPopup = { STORAGE_KEY, DEFAULTS, mount, normalize };
+  window.__xvmContentFilterPopup = { STORAGE_KEY, DEFAULTS, mount, normalize, renderAllRulesHtml, pickerOptionsHtml, loadRemoteRulesCache };
 })();
