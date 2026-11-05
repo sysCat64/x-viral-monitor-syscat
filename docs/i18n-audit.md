@@ -529,7 +529,7 @@ toastM2Hint, activateTitle, grokShortTemplateLabel, cfLockedHint
 
 ### 初期化前・言語変更時・失敗時の挙動
 
-- **初期化前**（`localizedStrings` が空）: `i18nOr` のフォールバックが、従来と同一の中国語文字列を返す。表示は以前と変わらない。
+- **初期化前**（`localizedStrings` が空）: `i18nOr` のフォールバック（中国語）が表示される。**ただし候補パネルの見出しだけは例外**で、プロバイダー非依存の表現に変えたため、フォールバックも従来の `Grok 评论候选` から `AI 回复候选` に変わっている（それ以外の 11 件は従来と同一の文字列）。
 - **初期化後**: bridge が登録済みキーを解決して渡す。登録漏れなら生のキー名が出る（I18N-008）ため、登録を自動テストで固定した。
 - **言語変更時**: 候補パネルの見出しは `showGrokOptions` のたびに更新する。テンプレートメニューは開くたびに生成する。AI ボタンのラベルは、生成後の `setGrokButtonLabel` で更新される。**ボタンの title は生成時の言語のまま**で、ページ再読み込みまで更新されない（既存の「構築済み DOM は再生成しない」仕様と同じ）。
 - **生成失敗時**: エラー本文は従来どおり契約のメッセージ。タイトルと既定の詳細のみ翻訳される。
@@ -540,7 +540,7 @@ toastM2Hint, activateTitle, grokShortTemplateLabel, cfLockedHint
   - 12 キーが 3 ロケールにあること、`bridge.js` に登録済みであること、`content.js` が全キーを使うこと。
   - `content.js` の全 `i18nOr()` キーが `CONTENT_MESSAGE_KEYS` にあること（既存テストは `i18n()` しか見ていなかった）。
   - AI UI 関数群に、キー化されていない CJK が残っていないこと（許可: プロンプト `【原推文】`、`new Error(…)`、`err?.message ||`）。
-  - ja / en / zh_CN での実行時解決、初期化前フォールバック、`{{COUNT}}` の置換、エラー本文が変わらないこと、`XVM_AI_GENERATE` の送信経路が変わらないこと。
+  - ja / en / zh_CN での実行時解決、初期化前フォールバック（見出しを除く）、`{{COUNT}}` の置換、エラー本文が変わらないこと、`XVM_AI_GENERATE` の送信経路が変わらないこと。
 - 変更 `tests/grok-readiness.test.js`: `showGrokErrorToast` を単体実行する環境に `i18nOr` のスタブ（フォールバックを返す）を追加しただけ。期待値は変更なし。
 - 有効性の確認: `content.js` を HEAD 版に戻すと 9 件が失敗する。
 
@@ -548,3 +548,53 @@ toastM2Hint, activateTitle, grokShortTemplateLabel, cfLockedHint
 
 - 実ブラウザでの表示（AI ボタン、候補パネル、テンプレートメニュー）。
 - `{{COUNT}}` の英語表現（`{{COUNT}} replies`）は件数 1 のときも複数形になる。
+
+## 付録 D: I18N-005 / I18N-006 実装結果（Phase 2-3）
+
+### I18N-005 トースト
+
+| 場所 | 変更前 | 変更後 |
+|---|---|---|
+| `content.js:217` | `` `书签内容刷新失败：${event.data.error \|\| '未知错误'}` `` | `i18nOr('contentBookmarkTimelineRefreshFailed', …).replace('{{ERROR}}', () => String(event.data.error \|\| i18nOr('contentUnknownError', …)))` |
+| `content.js:3274` | `'无法定位该推文：页面已回收该条目'` | `i18nOr('contentLbLocateFailed', …)` |
+
+- 動的なエラー詳細（`event.data.error`）は、そのまま表示する。置換には関数を使うため、`$&` や `$1` を含む文字列も加工されない。
+- 詳細が空のときの `未知错误` も、`contentUnknownError` で翻訳する。
+- `event.data.error` 自体の言語は、bridge / background 側が決める（I18N-003 の範囲。今回は変更しない）。
+- 初期化前は、従来と同一の中国語がフォールバックとして表示される。
+
+追加キー（3 ロケール同時、`CONTENT_MESSAGE_KEYS` 登録済み）:
+
+| キー | en | ja | zh_CN |
+|---|---|---|---|
+| `contentBookmarkTimelineRefreshFailed` | Bookmark refresh failed: {{ERROR}} | ブックマークの更新に失敗しました: {{ERROR}} | 书签内容刷新失败：{{ERROR}} |
+| `contentUnknownError` | Unknown error | 不明なエラー | 未知错误 |
+| `contentLbLocateFailed` | Can't locate this tweet: the page has already removed it | この投稿に移動できません。ページの表示が更新されたため、対象が見つからなくなりました。 | 无法定位该推文：页面已回收该条目 |
+
+### I18N-006 `aria-label="Close"`
+
+| 場所 | 要素 | 変更 |
+|---|---|---|
+| `content.js:2194` | リーダーボードの Pro 案内バブルの閉じるボタン | テンプレートから固定の `aria-label` を外し、生成後に `setAttribute` |
+| `content.js:3868` | 更新ノートのモーダルの閉じるボタン | `setAttribute('aria-label', i18nOr(…))` |
+| `content.js:4262` | AI 候補パネルの閉じるボタン | テンプレートから固定の `aria-label` を外し、`showGrokOptions` の呼び出しごとに設定（言語変更が反映される） |
+
+- 3 箇所とも既存キー `contentStarChartClose`（en: Close / ja: 閉じる / zh_CN: 关闭）を再利用した。
+- 再利用の根拠: いずれも「このパネルを閉じる」だけの汎用ボタンで、文意が一致する。`contentLeaderboardClose`（「注目投稿リストを閉じる」）は、バブルや更新モーダルには意味が合わないため使わなかった。`contentUpdateDismiss`（「了解」）は別の OK ボタン用なので使わなかった。
+- 留意点: キー名が StarChart 由来のため、本家が `contentStarChartClose` の文言を StarChart 専用に変更すると、この 3 箇所にも影響する。変更が入った場合は、専用キーを分ける。
+- クリック時の処理（`bubble.remove()`、`closeGrokOptions`、`dismiss`）は変更していない。
+- フォールバックは従来と同じ英語の `Close`。
+
+### テスト
+
+- 新規 `tests/toast-a11y-i18n.test.js`（13 件）
+  - 新規キーが 3 ロケールにあり、`CONTENT_MESSAGE_KEYS` に登録され、使用されていること。
+  - `{{ERROR}}` が各ロケールに 1 つずつあること。
+  - 3 言語での表示、動的なエラー詳細の保持（`$` パターンを含む）、詳細が空のときの翻訳、初期化前の中国語フォールバック。
+  - 固定の `aria-label="Close"` が残っていないこと、3 箇所が `contentStarChartClose` を使うこと、閉じる動作が変わっていないこと、候補パネルのラベルが毎回設定されること。
+- ロケール間のキー集合とプレースホルダーの一致は、既存の `tests/locale-consistency.test.js` が検証している。
+- 有効性: `content.js` を HEAD 版に戻すと 10 件が失敗する。
+
+### 作業メモ
+
+- 作業開始時、`npm test` が 1 件失敗していた（`build-dist-sync`: `_locales/.DS_Store` の内容が `dist/` の複製と不一致）。`.gitignore` 済みの macOS 生成ファイルが原因で、ソースとは無関係。`npm run build:community` で `dist/` を再生成して解消した（`.DS_Store` は削除していない）。

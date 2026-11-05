@@ -235,6 +235,10 @@ const CONTENT_MESSAGE_KEYS = [
   'contentAiErrorTitle',
   'contentAiErrorRetry',
   'contentAiNoTweetFound',
+  // I18N-005 — toasts (content.js).
+  'contentBookmarkTimelineRefreshFailed',
+  'contentUnknownError',
+  'contentLbLocateFailed',
 ];
 
 const DEFAULT_FEATURES = {

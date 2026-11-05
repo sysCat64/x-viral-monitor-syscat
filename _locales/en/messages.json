@@ -624,5 +624,8 @@
   "contentAiOptionFilledToast": { "message": "Reply inserted" },
   "contentAiErrorTitle": { "message": "AI generation failed" },
   "contentAiErrorRetry": { "message": "Please try again" },
-  "contentAiNoTweetFound": { "message": "Tweet content not found" }
+  "contentAiNoTweetFound": { "message": "Tweet content not found" },
+  "contentBookmarkTimelineRefreshFailed": { "message": "Bookmark refresh failed: {{ERROR}}" },
+  "contentUnknownError": { "message": "Unknown error" },
+  "contentLbLocateFailed": { "message": "Can't locate this tweet: the page has already removed it" }
 }

@@ -622,5 +622,8 @@
   "contentAiOptionFilledToast": { "message": "返信を挿入しました" },
   "contentAiErrorTitle": { "message": "AI 生成に失敗しました" },
   "contentAiErrorRetry": { "message": "もう一度お試しください" },
-  "contentAiNoTweetFound": { "message": "投稿の内容が見つかりません" }
+  "contentAiNoTweetFound": { "message": "投稿の内容が見つかりません" },
+  "contentBookmarkTimelineRefreshFailed": { "message": "ブックマークの更新に失敗しました: {{ERROR}}" },
+  "contentUnknownError": { "message": "不明なエラー" },
+  "contentLbLocateFailed": { "message": "この投稿に移動できません。ページの表示が更新されたため、対象が見つからなくなりました。" }
 }

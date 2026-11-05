@@ -622,5 +622,8 @@
   "contentAiOptionFilledToast": { "message": "已填充评论" },
   "contentAiErrorTitle": { "message": "AI 生成失败" },
   "contentAiErrorRetry": { "message": "请重试" },
-  "contentAiNoTweetFound": { "message": "未找到推文内容" }
+  "contentAiNoTweetFound": { "message": "未找到推文内容" },
+  "contentBookmarkTimelineRefreshFailed": { "message": "书签内容刷新失败：{{ERROR}}" },
+  "contentUnknownError": { "message": "未知错误" },
+  "contentLbLocateFailed": { "message": "无法定位该推文：页面已回收该条目" }
 }

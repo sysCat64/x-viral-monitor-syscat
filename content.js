@@ -214,7 +214,7 @@ window.addEventListener('message', (event) => {
     if (folderId) bookmarkTimelineFolderStatus.set(folderId, 'error');
     debugBookmarkTimeline('direct refresh cache error', { folderId, error: event.data.error });
     renderBookmarkTimelineSettings();
-    if (!event.data.background) showToast(`书签内容刷新失败：${event.data.error || '未知错误'}`);
+    if (!event.data.background) showToast(i18nOr('contentBookmarkTimelineRefreshFailed', '书签内容刷新失败：{{ERROR}}').replace('{{ERROR}}', () => String(event.data.error || i18nOr('contentUnknownError', '未知错误'))));
     return;
   }
   if (event.data?.type === 'XVM_BOOKMARK_TIMELINE_CACHE_RESET') {
@@ -2191,7 +2191,7 @@ function showLeaderboardUpgradeBubble() {
   const bubble = document.createElement('div');
   bubble.className = 'xvm-lb-upgrade';
   bubble.innerHTML = `
-    <button class="xvm-lb-upgrade-close" type="button" aria-label="Close">×</button>
+    <button class="xvm-lb-upgrade-close" type="button">×</button>
     <div class="xvm-lb-upgrade-title">✨ <span></span></div>
     <div class="xvm-lb-upgrade-sub"></div>
     <div class="xvm-lb-upgrade-actions">
@@ -2207,7 +2207,9 @@ function showLeaderboardUpgradeBubble() {
   const btn = bubble.querySelector('.xvm-lb-upgrade-btn');
   btn.textContent = i18n('contentLbHotOpenSite') || '去官网开通';
   btn.href = PRODUCT_SITE_PRO_URL;
-  bubble.querySelector('.xvm-lb-upgrade-close').addEventListener('click', () => bubble.remove());
+  const upgradeClose = bubble.querySelector('.xvm-lb-upgrade-close');
+  upgradeClose.setAttribute('aria-label', i18nOr('contentStarChartClose', 'Close'));
+  upgradeClose.addEventListener('click', () => bubble.remove());
   const head = leaderboardEl.querySelector('.xvm-lb-head');
   head.insertAdjacentElement('afterend', bubble);
 }
@@ -3271,7 +3273,7 @@ function jumpToLeaderboardTweet(id, itemEl) {
 
   clearLink();
   if (!Number.isFinite(meta?.pageY)) {
-    showToast('无法定位该推文：页面已回收该条目');
+    showToast(i18nOr('contentLbLocateFailed', '无法定位该推文：页面已回收该条目'));
     return;
   }
   if (savedScrollY === null) {
@@ -3865,7 +3867,7 @@ function showReleaseNotesModal(version) {
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'xvm-update-close';
-  close.setAttribute('aria-label', 'Close');
+  close.setAttribute('aria-label', i18nOr('contentStarChartClose', 'Close'));
   close.textContent = '×';
 
   const eyebrow = document.createElement('div');
@@ -4259,13 +4261,14 @@ function showGrokOptions(comments, editable, opts = {}) {
       <div class="xvm-grok-options-head">
         <strong class="xvm-grok-options-title"></strong>
         <span class="xvm-grok-options-status" aria-live="polite"></span>
-        <button type="button" class="xvm-grok-close" aria-label="Close">×</button>
+        <button type="button" class="xvm-grok-close">×</button>
       </div>
       <div class="xvm-grok-options-list"></div>
     `;
     panel.querySelector('.xvm-grok-close')?.addEventListener('click', closeGrokOptions);
     document.body.appendChild(panel);
   }
+  panel.querySelector('.xvm-grok-close')?.setAttribute('aria-label', i18nOr('contentStarChartClose', 'Close'));
   const optionsTitle = panel.querySelector('.xvm-grok-options-title');
   if (optionsTitle) optionsTitle.textContent = i18nOr('contentAiOptionsTitle', 'AI 回复候选');
   const status = panel.querySelector('.xvm-grok-options-status');
