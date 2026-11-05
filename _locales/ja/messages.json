@@ -3,10 +3,10 @@
     "message": "X バイラルモニター"
   },
   "extDescription": {
-    "message": "X 投稿の流速バッジ・長尺画像ビューア・Markdown コピー・サポーター星図・Grok 返信補助 — すべてローカル処理、データ収集なし。"
+    "message": "X 投稿の流速表示・縦長画像表示・Markdownコピー・リポスト／引用の可視化・AI返信補助。AI返信時は選択したサービスに投稿内容を送信。"
   },
   "popupSubtitle": {
-    "message": "X 投稿のリアルタイム表示流速"
+    "message": "X 投稿のリアルタイム流速"
   },
   "tierNormal": {
     "message": "通常"
@@ -57,7 +57,7 @@
     "message": "X のネイティブ共有メニューの下部に「Markdown としてコピー」を追加し、本文・投稿者・リンク・日時を Markdown 形式でコピーします。"
   },
   "featureLeaderboardTitle": {
-    "message": "📊 流速リーダーボード"
+    "message": "📊 流速ランキング"
   },
   "featureLeaderboardDesc": {
     "message": "現在のページで最も伸びている投稿を表示するドラッグ可能なフローティングパネルです。行をクリックすると投稿までスクロールします。"
@@ -66,7 +66,7 @@
     "message": "端に隠す"
   },
   "featureLeaderboardEdgeHideDesc": {
-    "message": "有効にすると、リーダーボードを画面端までドラッグして離したときに収納します。"
+    "message": "有効にすると、流速ランキングを画面端までドラッグして離したときに収納します。"
   },
   "featureLeaderboardShowTop": {
     "message": "上位"
@@ -81,7 +81,7 @@
     "message": "順位"
   },
   "popupColIcon": {
-    "message": "ティアアイコン"
+    "message": "流速ランク"
   },
   "popupColHandle": {
     "message": "ユーザー名"
@@ -144,7 +144,7 @@
     "message": "設定を閉じる"
   },
   "contentLeaderboardSettingsPanelTitle": {
-    "message": "注目投稿リスト設定"
+    "message": "流速ランキング"
   },
   "contentLeaderboardColumns": {
     "message": "表示する列"
@@ -171,13 +171,13 @@
     "message": "コピーに失敗しました"
   },
   "contentCopyTweetCommentsLabel": {
-    "message": "投稿とコメントをコピー"
+    "message": "投稿と返信をコピー"
   },
   "contentCopyTweetCommentsDone": {
-    "message": "投稿とコメントをコピーしました！"
+    "message": "投稿と返信をコピーしました！"
   },
   "contentCopyTweetCommentsHeading": {
-    "message": "コメント"
+    "message": "返信"
   },
   "contentFallbackTweetLabel": {
     "message": "投稿"
@@ -186,10 +186,10 @@
     "message": "列設定を保存しました ✓"
   },
   "flashLeaderboardOn": {
-    "message": "リーダーボードを有効化 ✓"
+    "message": "流速ランキングを有効化 ✓"
   },
   "flashLeaderboardOff": {
-    "message": "リーダーボードを無効化"
+    "message": "流速ランキングを無効化"
   },
   "flashLeaderboardEdgeHideOn": {
     "message": "端に隠す機能を有効化 ✓"
@@ -239,13 +239,13 @@
     "message": "読み込み失敗：{{REASON}}"
   },
   "contentStarChartNoTweetFound": {
-    "message": "ツイートを特定できません"
+    "message": "投稿を特定できません"
   },
   "contentStarChartModuleNotLoaded": {
     "message": "スターチャートを読み込めません — ページを再読み込みしてください"
   },
   "contentStarChartLegendRT": {
-    "message": "リツイート"
+    "message": "リポスト"
   },
   "contentStarChartLegendQuote": {
     "message": "引用"
@@ -257,7 +257,7 @@
     "message": "閉じる"
   },
   "contentStarChartStatRetweets": {
-    "message": "リツイート"
+    "message": "リポスト"
   },
   "contentStarChartStatQuotes": {
     "message": "引用"
@@ -275,10 +275,10 @@
     "message": "引用ストリーム"
   },
   "contentStarChartRiverEmpty": {
-    "message": "引用ツイートはまだありません"
+    "message": "引用投稿はまだありません"
   },
   "contentStarChartEmpty": {
-    "message": "このツイートにはまだサポーターがいません"
+    "message": "この投稿にはまだサポーターがいません"
   },
   "contentStarChartReset": {
     "message": "ビューをリセット"
@@ -287,7 +287,7 @@
     "message": "サンクス・スターチャート"
   },
   "popupStarChartHint": {
-    "message": "ツイートの共有メニューにスターチャート生成項目を追加します。"
+    "message": "投稿の共有メニューにスターチャート生成項目を追加します。"
   },
   "flashStarChartOn": {
     "message": "スターチャートを有効化"
@@ -299,7 +299,7 @@
     "message": "🔖 ブックマークフォルダーメニュー"
   },
   "featureBookmarkFoldersDesc": {
-    "message": "ツイートのブックマークボタンにホバーして、フォルダー選択、保存先確認、新規作成ができます。X Premium が必要です。"
+    "message": "投稿のブックマークボタンにホバーして、フォルダー選択、保存先確認、新規作成ができます。X Premium が必要です。"
   },
   "flashBookmarkFoldersOn": {
     "message": "ブックマークフォルダーメニューを有効化"
@@ -335,7 +335,7 @@
     "message": "🔖 ブックマーク数を表示"
   },
   "featureBookmarkCountDesc": {
-    "message": "タイムライン上の各ツイートのブックマークボタン横にブックマーク数を表示します。"
+    "message": "タイムライン上の各投稿のブックマークボタン横にブックマーク数を表示します。"
   },
   "flashBookmarkCountOn": {
     "message": "ブックマーク数の表示を有効化"
@@ -362,7 +362,7 @@
     "message": "全て"
   },
   "contentStarChartFilterRetweet": {
-    "message": "リツイート"
+    "message": "リポスト"
   },
   "contentStarChartFilterQuote": {
     "message": "引用"
@@ -377,13 +377,13 @@
     "message": "次の引用"
   },
   "popupGrokPromptTitle": {
-    "message": "Grok コメントプロンプト"
+    "message": "Grok 返信プロンプト"
   },
   "popupGrokPromptHint": {
     "message": "指示だけ書けば十分です。[推文内容] と「各返信をコードブロックで囲む」指示は、無ければ自動で補われます。挿入位置を指定したいときだけ [推文内容] を書いてください。返信欄の AI 生成をクリックしてテンプレートを選び、生成後に Options から1件を選びます。"
   },
   "popupGrokTempChatLabel": {
-    "message": "一時チャットを使う（Grok 履歴を汚さない）"
+    "message": "一時チャットを使う（Grok 履歴を残さない）"
   },
   "flashGrokTempChatOn": {
     "message": "一時チャットを有効にしました ✓"
@@ -401,10 +401,10 @@
     "message": "🏷️ バッジスタイル"
   },
   "badgeStylePillSolid": {
-    "message": "ソリッドピル"
+    "message": "カプセル型"
   },
   "badgeStyleInlineClassic": {
-    "message": "クラシックインライン"
+    "message": "インライン型"
   },
   "flashBadgeStyleSaved": {
     "message": "バッジスタイルを保存しました ✓"
@@ -425,7 +425,7 @@
   "proActErrGeneric":    { "message": "有効化失敗: $ERROR$", "placeholders": { "ERROR": { "content": "$1" } } },
   "proLicenseField":     { "message": "ライセンス" },
   "proActivatedField":   { "message": "有効化日" },
-  "proExpiresField":     { "message": "更新日" },
+  "proExpiresField":     { "message": "有効期限" },
   "proManageBtn":        { "message": "サブスクリプション管理" },
   "proDeactivateBtn":    { "message": "無効化" },
   "proDeactivating":     { "message": "無効化中…" },
@@ -441,8 +441,8 @@
   "rfScopeStatus":   { "message": "投稿詳細" },
   "rfShortLegend":   { "message": "短い投稿 — いずれかが閾値超なら表示" },
   "rfLongLegend":    { "message": "X Articles 長文 — いずれかが閾値超なら表示" },
-  "rfRatePerMin":    { "message": "views / 分 ≥" },
-  "rfAbsoluteViews": { "message": "総表示数 ≥" },
+  "rfRatePerMin":    { "message": "表示回数/分 >" },
+  "rfAbsoluteViews": { "message": "総表示数 >" },
   "rfRuleHint":      { "message": "ルール: (views/min > 速度閾値) または (総表示数 > 絶対閾値) いずれか成立で表示, それ以外は非表示。" },
   "rfReset":         { "message": "デフォルト" },
   "rfSave":          { "message": "保存" },
@@ -489,7 +489,7 @@
   "advLeaderboardTitle":     { "message": "ランキング詳細" },
   "advOtherFeaturesTitle":   { "message": "その他の機能" },
   "advGrokShortTitle":       { "message": "AI 返信 — プロンプトテンプレート" },
-  "aiProviderTitle": { "message": "AI コメントプロバイダー" },
+  "aiProviderTitle": { "message": "AI 返信プロバイダー" },
   "aiProviderLabel": { "message": "プロバイダー" },
   "aiPlatformLabel": { "message": "プラットフォーム" },
   "aiBaseUrlLabel": { "message": "Base URL" },
@@ -518,8 +518,8 @@
   "tabLeaderboard": { "message": "ランキング" },
   "tabAi":          { "message": "AI 返信" },
   "tabAbout":       { "message": "情報" },
-  "rfSubShort":     { "message": "短い投稿" },
-  "rfSubLong":      { "message": "長文 (X Article)" },
+  "rfSubShort":     { "message": "通常投稿" },
+  "rfSubLong":      { "message": "X記事" },
   "comingListTitle":{ "message": "今後の機能候補" },
   "chipTierFree":   { "message": "無料" },
   "chipTierTrial":  { "message": "トライアル" },
@@ -551,7 +551,7 @@
   "grokCustomTemplateName": { "message": "テンプレート $N$", "placeholders": { "N": { "content": "$1" } } },
   "contentLbHotOnly":      { "message": "ホットのみ" },
   "contentLbHotProTitle":  { "message": "流速フィルターは Pro 機能" },
-  "contentLbHotProSub":    { "message": "低表示数の投稿を非表示にし、実際に拡散している投稿だけ残す" },
+  "contentLbHotProSub":    { "message": "流速か総表示数が基準を超えた投稿を表示" },
   "contentLbHotEnabledToast": { "message": "ホットのみが有効です。基準に満たない投稿はこのページから非表示になります。" },
   "contentLbHotActiveNotice": { "message": "ホットのみが有効です。基準未満の投稿は非表示です。" },
   "contentLbHotScopeTitle": { "message": "適用範囲" },
@@ -564,10 +564,10 @@
   "contentLbHotOpenSite":  { "message": "公式サイトを開く" },
   "contentUpdateTitle": { "message": "X Viral Monitor が更新されました" },
   "contentUpdateSubtitle": { "message": "今回の更新で見落としやすい変更点です：" },
-  "contentUpdateItemAiProviderTitle": { "message": "AI コメントサービス" },
-  "contentUpdateItemAiProviderBody": { "message": "設定 → AI コメント生成でサービスを選択できます。X Grok のほか、OpenAI 互換 API、DeepSeek、OpenRouter、ローカル Ollama に対応しました。" },
+  "contentUpdateItemAiProviderTitle": { "message": "AI 返信サービス" },
+  "contentUpdateItemAiProviderBody": { "message": "設定 → AI 返信生成でサービスを選択できます。X Grok のほか、OpenAI 互換 API、DeepSeek、OpenRouter、ローカル Ollama に対応しました。" },
   "contentUpdateItemReplyToolsTitle": { "message": "Enter で返信を送信" },
-  "contentUpdateItemReplyToolsBody": { "message": "コメント時に Enter だけで返信を送信できる機能を追加しました。設定 → その他の機能 → Enter で返信を送信を有効にすると、返信欄で Command + Enter が不要になります。" },
+  "contentUpdateItemReplyToolsBody": { "message": "返信時に Enter だけで返信を送信できる機能を追加しました。設定 → その他の機能 → Enter で返信を送信を有効にすると、返信欄で Command + Enter が不要になります。" },
   "contentUpdateItemHotOnlyTitle": { "message": "ホットのみ状態を明確化" },
   "contentUpdateItemHotOnlyBody": { "message": "ホットのみを有効にすると、基準未満の投稿はページから非表示になります。適用範囲は Popup またはフローティングパネル設定で選べます。" },
   "contentUpdateItemBookmarkToolsTitle": { "message": "ブックマーク機能を見つけやすく" },
@@ -693,13 +693,13 @@
   "cfRule_spam_phishing_airdrop_high": { "message": "エアドロップ・ウォレット認証・秘密鍵を狙う詐欺" },
   "cfRule_spam_name_click_profile_high": { "message": "表示名での「プロフィールを見て」誘導" },
   "cfRule_spam_name_funnel_high": { "message": "表示名での副業・還元・無料特典の誘導" },
-  "cfRule_spam_name_exchange_support_high": { "message": "表示名での取引所サポート・商談窓口の装い" },
+  "cfRule_spam_name_exchange_support_high": { "message": "表示名のBitMart窓口・報酬案内" },
   "cfRule_spam_bio_wechat_telegram_funnel_high": { "message": "プロフィールでのWeChat／Telegram連絡先への誘導" },
   "cfRule_spam_short_symbol_content_high": { "message": "記号や絵文字だけの短い投稿" },
   "cfRule_spam_bio_zhongtui_high": { "message": "プロフィールでのグループ勧誘・宣伝" },
   "cfRule_adult_bio_funnel_platform_high": { "message": "プロフィールでの出会い系プラットフォーム誘導" },
-  "cfRule_adult_bio_profile_template_high": { "message": "プロフィールの成人向け定型文" },
-  "cfRule_adult_bio_offline_match_high": { "message": "プロフィールでのオフライン交際マッチング誘導" },
+  "cfRule_adult_bio_profile_template_high": { "message": "プロフィール欄の成人向け定型文" },
+  "cfRule_adult_bio_offline_match_high": { "message": "プロフィールの出会い・仲介案内" },
   "cfRule_spam_foxlink_invite_url_high": { "message": "foxlink の招待リンク" },
   "cfRule_adult_content_page_funnel_high": { "message": "投稿内の「プロフィールへ」成人向け誘導" },
   "cfRule_spam_content_zhongtui_high": { "message": "投稿でのグループ勧誘・宣伝" },
